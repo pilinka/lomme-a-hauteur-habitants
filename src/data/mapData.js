@@ -1,36 +1,41 @@
-export const lommeCenter = [50.6418, 3.0118];
+export const lommeCenter = [50.6408, 3.0012];
 
 export const lommeBounds = [
-  [50.6205, 2.974],
-  [50.6635, 3.054],
+  [50.621, 2.96],
+  [50.659, 3.05],
 ];
 
-// Zones approximatives pour la maquette.
-// À remplacer par le GeoJSON officiel dataMEL / Mairie de Lille pour une version de production.
+// Zones de zoom provisoires recalées à partir de repères cartographiques.
+// Ces zones servent au zoom par quartier, mais ne sont pas des limites officielles.
+// À remplacer plus tard par les vrais contours GeoJSON des quartiers.
 export const quartiersBounds = {
   "Toute la ville": lommeBounds,
+
   Bourg: [
-    [50.631, 3.004],
-    [50.646, 3.026],
+    [50.6327, 2.9792],
+    [50.6447, 3.0015],
   ],
+
   Délivrance: [
-    [50.638, 2.986],
-    [50.656, 3.013],
+    [50.6288, 2.9785],
+    [50.6415, 3.0008],
   ],
+
   Marais: [
-    [50.645, 3.019],
-    [50.662, 3.049],
+    [50.6236, 2.9842],
+    [50.639, 3.0248],
   ],
+
   Mitterie: [
-    [50.624, 2.982],
-    [50.638, 3.01],
+    [50.6395, 2.9628],
+    [50.6567, 3.0115],
   ],
+
   "Mont-à-Camp": [
-    [50.622, 3.016],
-    [50.638, 3.046],
+    [50.6366, 2.9962],
+    [50.6496, 3.0205],
   ],
 };
-
 export const quartiersGeoJson = {
   type: "FeatureCollection",
   features: Object.entries(quartiersBounds)

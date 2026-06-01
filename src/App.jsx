@@ -337,13 +337,20 @@ function MapPage({
               <LayersControl.Overlay name="Carte sensible fournie" checked>
                 <ImageOverlay url="/assets/carte-lomme.jpg" bounds={lommeBounds} opacity={0.38} />
               </LayersControl.Overlay>
-              <LayersControl.Overlay name="Limites des quartiers — maquette" checked>
-                <GeoJSON
-                  data={quartiersGeoJson}
-                  style={() => ({ color: "#6f8f72", weight: 2, fillColor: "#6f8f72", fillOpacity: 0.08 })}
-                  onEachFeature={(feature, layer) => layer.bindTooltip(feature.properties.quartier, { sticky: true })}
-                />
-              </LayersControl.Overlay>
+                <LayersControl.Overlay name="Zones de zoom provisoires">
+  <GeoJSON
+    data={quartiersGeoJson}
+    style={() => ({
+      color: "#6f8f72",
+      weight: 2,
+      fillColor: "#6f8f72",
+      fillOpacity: 0.08,
+    })}
+    onEachFeature={(feature, layer) =>
+      layer.bindTooltip(feature.properties.quartier, { sticky: true })
+    }
+  />
+</LayersControl.Overlay>
               {melmapWmsLayers.filter((layer) => layer.enabled && layer.url && layer.layers).map((layer) => (
                 <LayersControl.BaseLayer key={layer.id} name={layer.name}>
                   <WMSTileLayer
