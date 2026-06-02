@@ -9,12 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "leaflet": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "leaflet": "latest",
-    "react-leaflet": "latest"
-  },
-  "devDependencies": {}
+    "react-leaflet": "latest",
+    "vite": "latest"
+  }
 }

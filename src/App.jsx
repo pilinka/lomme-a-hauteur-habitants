@@ -12,6 +12,7 @@ import {
   useMapEvents,
   WMSTileLayer,
 } from "react-leaflet";
+import { supabase } from "./supabaseClient.js";
 import { melmapWmsLayers } from "./melmap.config.js";
 import {
   emotionIcon,
@@ -71,6 +72,9 @@ export default function App() {
   const [page, setPage] = useState("accueil");
   const [contributions, setContributions] = useState(initialContributions);
   const [vieLocale] = useState(initialVieLocale);
+  const [session, setSession] = useState(null);
+  const [pendingContributions, setPendingContributions] = useState([]);
+  const [adminMessage, setAdminMessage] = useState("");
   const [selected, setSelected] = useState(initialContributions[0]);
   const [draftPoint, setDraftPoint] = useState(null);
   const [zoomTarget, setZoomTarget] = useState(quartiersBounds["Toute la ville"]);
@@ -112,29 +116,164 @@ export default function App() {
     setFilters((current) => ({ ...current, quartier: name === "Toute la ville" ? "Tous" : name }));
     setPage("carte");
   }
+useEffect(() => {
+  supabase.auth.getSession().then(({ data }) => {
+    setSession(data.session);
+  });
 
-  function addContribution(form) {
-    const layer = form.author === "Enfant accompagné" ? "enfants" : form.type === "Idée d’aménagement" ? "idees" : "regards";
-    const contribution = {
-      id: `new-${Date.now()}`,
-      layer,
-      title: form.title,
-      quartier: form.quartier,
-      type: form.type,
-      emotion: form.emotion,
-      description: form.description,
-      author: form.author,
-      media: form.media || "📎 Média simulé",
-      position: draftPoint || quartierCenter(form.quartier),
-      status: "en attente de modération",
-    };
+  const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    setSession(currentSession);
+  });
 
-    setContributions((current) => [contribution, ...current]);
-    setSelected(contribution);
-    setDraftPoint(null);
-    setPage("carte");
+  return () => {
+    authListener.subscription.unsubscribe();
+  };
+}, []);
+
+useEffect(() => {
+  if (session) {
+    loadPendingContributions();
+  } else {
+    setPendingContributions([]);
+  }
+}, [session]);
+
+function formatContributionFromDb(item) {
+  return {
+    id: item.id,
+    layer: item.layer || "regards",
+    title: item.title,
+    quartier: item.quartier,
+    type: item.type,
+    emotion: item.emotion,
+    description: item.description,
+    media: item.media_url || "📎 Média",
+    position: [item.latitude, item.longitude],
+    status: item.status,
+    created_at: item.created_at,
+  };
+}
+
+async function signInAdmin(email, password) {
+  setAdminMessage("");
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    console.error(error);
+    setAdminMessage("Connexion impossible. Vérifie l’e-mail et le mot de passe.");
+    return;
   }
 
+  setAdminMessage("Connexion administrateur réussie.");
+}
+
+async function signOutAdmin() {
+  await supabase.auth.signOut();
+  setAdminMessage("Déconnexion effectuée.");
+}
+
+async function loadPendingContributions() {
+  const { data, error } = await supabase
+    .from("contributions")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    setAdminMessage("Impossible de charger les contributions en attente.");
+    return;
+  }
+
+  setPendingContributions((data || []).map(formatContributionFromDb));
+}
+
+async function moderateContribution(id, newStatus) {
+  const { error } = await supabase
+    .from("contributions")
+    .update({
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) {
+    console.error(error);
+    setAdminMessage("La décision de modération n’a pas pu être enregistrée.");
+    return;
+  }
+
+  setPendingContributions((current) => current.filter((item) => item.id !== id));
+
+  const message =
+    newStatus === "published"
+      ? "Contribution publiée."
+      : newStatus === "rejected"
+        ? "Contribution refusée."
+        : "Contribution archivée.";
+
+  setAdminMessage(message);
+}
+async function addContribution(form) {
+  const layer =
+    form.author === "Enfant accompagné"
+      ? "enfants"
+      : form.type === "Idée d’aménagement"
+        ? "idees"
+        : "regards";
+
+  const position = draftPoint || quartierCenter(form.quartier);
+
+  const contribution = {
+    title: form.title,
+    quartier: form.quartier,
+    type: form.type,
+    emotion: form.emotion,
+    description: form.description,
+    layer,
+    latitude: position[0],
+    longitude: position[1],
+    media_url: form.media || null,
+    pseudonyme: null,
+    contact_email: null,
+    status: "pending",
+  };
+
+  const { error } = await supabase
+    .from("contributions")
+    .insert(contribution);
+
+  if (error) {
+    console.error(error);
+    alert("La contribution n’a pas pu être envoyée. Vérifie la connexion Supabase.");
+    return;
+  }
+
+  const localContribution = {
+    id: `pending-${Date.now()}`,
+    layer,
+    title: form.title,
+    quartier: form.quartier,
+    type: form.type,
+    emotion: form.emotion,
+    description: form.description,
+    author: form.author,
+    media: form.media || "📎 Média simulé",
+    position,
+    status: "en attente de modération",
+  };
+
+  setContributions((current) => [localContribution, ...current]);
+  setSelected(localContribution);
+  setDraftPoint(null);
+
+  alert("Merci, votre contribution a bien été envoyée. Elle est maintenant en attente de validation.");
+  setPage("carte");
+}
   return (
     <main>
       <Header page={page} setPage={setPage} />
@@ -185,7 +324,22 @@ export default function App() {
         />
       )}
 
-      {page === "urbanistes" && <Dashboard items={allItems} filteredItems={filteredItems} filters={filters} setFilters={setFilters} zoomQuartier={zoomQuartier} />}
+      {page === "urbanistes" && (
+  <Dashboard
+    items={allItems}
+    filteredItems={filteredItems}
+    filters={filters}
+    setFilters={setFilters}
+    zoomQuartier={zoomQuartier}
+    session={session}
+    pendingContributions={pendingContributions}
+    adminMessage={adminMessage}
+    signInAdmin={signInAdmin}
+    signOutAdmin={signOutAdmin}
+    loadPendingContributions={loadPendingContributions}
+    moderateContribution={moderateContribution}
+  />
+)}
 
       {page === "protection" && <Protection />}
     </main>
@@ -511,7 +665,24 @@ function ContributionForm({ childMode = false, title, intro, types, defaultType,
   );
 }
 
-function Dashboard({ items, filteredItems, filters, setFilters, zoomQuartier }) {
+function Dashboard({
+  items,
+  filteredItems,
+  filters,
+  setFilters,
+  zoomQuartier,
+  session,
+  pendingContributions,
+  adminMessage,
+  signInAdmin,
+  signOutAdmin,
+  loadPendingContributions,
+  moderateContribution,
+}) {
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+
   const counts = {
     total: items.length,
     regards: items.filter((i) => i.layer === "regards").length,
@@ -521,14 +692,27 @@ function Dashboard({ items, filteredItems, filters, setFilters, zoomQuartier }) 
   };
 
   const byQuartier = quartiers
-    .map((quartier) => ({ quartier, count: items.filter((item) => item.quartier === quartier).length }))
+    .map((quartier) => ({
+      quartier,
+      count: items.filter((item) => item.quartier === quartier).length,
+    }))
     .sort((a, b) => b.count - a.count);
+
+  async function handleAdminLogin(event) {
+    event.preventDefault();
+    setLoginLoading(true);
+    await signInAdmin(adminEmail, adminPassword);
+    setLoginLoading(false);
+  }
 
   return (
     <section className="page">
       <p className="eyebrow">Espace urbanistes</p>
-      <h1>Diagnostic sensible et vie locale</h1>
-      <p className="intro">Cet espace aide à croiser paroles habitantes, regards d’enfants, vie locale et idées d’aménagement.</p>
+      <h1>Diagnostic sensible et modération</h1>
+      <p className="intro">
+        Cet espace aide à croiser paroles habitantes, regards d’enfants, vie locale,
+        idées d’aménagement et décisions de modération.
+      </p>
 
       <div className="stats">
         <Stat number={counts.total} label="points sur la carte" />
@@ -538,10 +722,119 @@ function Dashboard({ items, filteredItems, filters, setFilters, zoomQuartier }) 
         <Stat number={counts.idees} label="idées pour demain" />
       </div>
 
+      <section className="panel">
+        <h2>Contributions en attente de validation</h2>
+        <p>
+          Les contributions déposées par les habitants arrivent ici avant publication.
+          La décision reste humaine : publier, refuser ou archiver.
+        </p>
+
+        {!session ? (
+          <form className="cardForm" onSubmit={handleAdminLogin}>
+            <label className="field">
+              <span>E-mail administrateur</span>
+              <input
+                type="email"
+                value={adminEmail}
+                onChange={(event) => setAdminEmail(event.target.value)}
+                placeholder="votre adresse admin"
+              />
+            </label>
+
+            <label className="field">
+              <span>Mot de passe</span>
+              <input
+                type="password"
+                value={adminPassword}
+                onChange={(event) => setAdminPassword(event.target.value)}
+                placeholder="mot de passe Supabase"
+              />
+            </label>
+
+            {adminMessage && <div className="notice compact">{adminMessage}</div>}
+
+            <button className="primary full" type="submit" disabled={loginLoading}>
+              {loginLoading ? "Connexion..." : "Se connecter comme administrateur"}
+            </button>
+          </form>
+        ) : (
+          <>
+            <div className="toolsPanel urbanTools">
+              <button className="secondary" onClick={loadPendingContributions}>
+                Actualiser les contributions
+              </button>
+              <button className="secondary" onClick={signOutAdmin}>
+                Se déconnecter
+              </button>
+            </div>
+
+            {adminMessage && <div className="notice compact">{adminMessage}</div>}
+
+            {pendingContributions.length === 0 ? (
+              <div className="notice compact">
+                Aucune contribution en attente pour le moment.
+              </div>
+            ) : (
+              <section className="list">
+                {pendingContributions.map((item) => (
+                  <article className="listItem" key={item.id}>
+                    <span>{typeIcon[item.type] || "📍"}</span>
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p>
+                        {item.quartier} · {layerLabels[item.layer] || item.type}
+                        {item.emotion ? ` · ${emotionIcon[item.emotion]} ${item.emotion}` : ""}
+                      </p>
+                      <p>{item.description}</p>
+
+                      <div className="toolsPanel urbanTools">
+                        <button
+                          className="primary"
+                          onClick={() => moderateContribution(item.id, "published")}
+                        >
+                          Publier
+                        </button>
+                        <button
+                          className="secondary"
+                          onClick={() => moderateContribution(item.id, "rejected")}
+                        >
+                          Refuser
+                        </button>
+                        <button
+                          className="secondary"
+                          onClick={() => moderateContribution(item.id, "archived")}
+                        >
+                          Archiver
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </section>
+            )}
+          </>
+        )}
+      </section>
+
       <div className="toolsPanel urbanTools">
-        <Select label="Quartier" value={filters.quartier} options={["Tous", ...quartiers]} onChange={(value) => setFilters((f) => ({ ...f, quartier: value }))} />
-        <Select label="Ressenti" value={filters.emotion} options={["Tous", ...emotions]} onChange={(value) => setFilters((f) => ({ ...f, emotion: value }))} />
-        <button className="secondary" onClick={() => alert("Export fictif du diagnostic sensible")}>Exporter le diagnostic</button>
+        <Select
+          label="Quartier"
+          value={filters.quartier}
+          options={["Tous", ...quartiers]}
+          onChange={(value) => setFilters((f) => ({ ...f, quartier: value }))}
+        />
+        <Select
+          label="Ressenti"
+          value={filters.emotion}
+          options={["Tous", ...emotions]}
+          onChange={(value) => setFilters((f) => ({ ...f, emotion: value }))}
+        />
+        <button
+          className="secondary"
+          onClick={() => alert("Export fictif du diagnostic sensible")}
+        >
+          Exporter le diagnostic
+        </button>
       </div>
 
       <div className="dashboardGrid">
@@ -549,8 +842,12 @@ function Dashboard({ items, filteredItems, filters, setFilters, zoomQuartier }) 
           <h2>Quartiers les plus mentionnés</h2>
           {byQuartier.map((item) => (
             <div className="barRow" key={item.quartier}>
-              <button onClick={() => zoomQuartier(item.quartier)}>{item.quartier}</button>
-              <div className="bar"><div style={{ width: `${Math.max(12, item.count * 18)}%` }} /></div>
+              <button onClick={() => zoomQuartier(item.quartier)}>
+                {item.quartier}
+              </button>
+              <div className="bar">
+                <div style={{ width: `${Math.max(12, item.count * 18)}%` }} />
+              </div>
               <strong>{item.count}</strong>
             </div>
           ))}
@@ -558,8 +855,15 @@ function Dashboard({ items, filteredItems, filters, setFilters, zoomQuartier }) 
 
         <section className="panel">
           <h2>Synthèse sensible</h2>
-          <p>Les points de vie locale permettent de repérer les lieux de rencontre, d’activité associative, d’événements et d’animation du territoire.</p>
-          <p>Les contributions habitantes et enfantines permettent de relier ces lieux aux accès, à l’ambiance, à l’éclairage, aux cheminements et aux besoins d’aménagement.</p>
+          <p>
+            Les points de vie locale permettent de repérer les lieux de rencontre,
+            d’activité associative, d’événements et d’animation du territoire.
+          </p>
+          <p>
+            Les contributions habitantes et enfantines permettent de relier ces lieux
+            aux accès, à l’ambiance, à l’éclairage, aux cheminements et aux besoins
+            d’aménagement.
+          </p>
         </section>
       </div>
 
@@ -570,7 +874,10 @@ function Dashboard({ items, filteredItems, filters, setFilters, zoomQuartier }) 
             <span>{typeIcon[item.type] || "📍"}</span>
             <div>
               <strong>{item.title}</strong>
-              <p>{item.quartier} · {layerLabels[item.layer] || item.type} {item.emotion ? `· ${emotionIcon[item.emotion]} ${item.emotion}` : ""}</p>
+              <p>
+                {item.quartier} · {layerLabels[item.layer] || item.type}
+                {item.emotion ? ` · ${emotionIcon[item.emotion]} ${item.emotion}` : ""}
+              </p>
             </div>
           </article>
         ))}
@@ -578,7 +885,6 @@ function Dashboard({ items, filteredItems, filters, setFilters, zoomQuartier }) 
     </section>
   );
 }
-
 function Protection() {
   return (
     <section className="page protection">
