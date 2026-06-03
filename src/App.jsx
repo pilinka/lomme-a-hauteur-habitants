@@ -253,22 +253,7 @@ async function addContribution(form) {
     return;
   }
 
-  const localContribution = {
-    id: `pending-${Date.now()}`,
-    layer,
-    title: form.title,
-    quartier: form.quartier,
-    type: form.type,
-    emotion: form.emotion,
-    description: form.description,
-    author: form.author,
-    media: form.media || "📎 Média simulé",
-    position,
-    status: "en attente de modération",
-  };
 
-  setContributions((current) => [localContribution, ...current]);
-  setSelected(localContribution);
   setDraftPoint(null);
 
   alert("Merci, votre contribution a bien été envoyée. Elle est maintenant en attente de validation.");
