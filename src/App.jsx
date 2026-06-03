@@ -886,16 +886,159 @@ function Dashboard({
   );
 }
 function Protection() {
+  const documents = [
+  {
+    icon: "🛡️",
+    title: "Politique de confidentialité",
+    text: "Ce document explique quelles données peuvent être collectées, pourquoi elles sont utilisées, comment elles sont protégées et comment exercer ses droits.",
+    href: "/assets/documents/politique-confidentialite.pdf",
+  },
+  {
+    icon: "🤝",
+    title: "Charte d’usage et de modération",
+    text: "Cette charte précise les règles de contribution, les contenus refusés, la protection des mineurs, le droit à l’image et le rôle de la modération humaine.",
+    href: "/assets/documents/charte-usage-moderation.pdf",
+  },
+  {
+    icon: "🧠",
+    title: "Charte d’usage de l’intelligence artificielle",
+    text: "Cette charte encadre l’usage éventuel de l’IA : elle peut aider à classer, reformuler ou synthétiser, mais la décision finale reste humaine.",
+    href: "/assets/documents/charte-ia.pdf",
+  },
+];
+const [openDoc, setOpenDoc] = useState(null);
   return (
     <section className="page protection">
-      <p className="eyebrow">Protection et modération</p>
-      <h1>Un cadre simple pour contribuer en confiance</h1>
+      <p className="eyebrow">Cadre de confiance</p>
+      <h1>Protection des habitants, des enfants et des données</h1>
+
+      <p className="intro">
+        Cette application repose sur une règle simple : les contributions sont volontaires,
+        modérées avant publication et utilisées pour mieux comprendre les lieux vécus,
+        les besoins du quotidien et la vie locale.
+      </p>
+
       <div className="protectionGrid">
-        <article><span>✅</span><h2>Modération</h2><p>Les contributions sont relues avant publication pour éviter les contenus sensibles ou nominatifs.</p></article>
-        <article><span>🧒</span><h2>Anonymat des enfants</h2><p>Les enfants ne sont pas nommés. Les dessins et textes courts sont privilégiés.</p></article>
-        <article><span>📷</span><h2>Images prudentes</h2><p>Les photos de personnes reconnaissables sont évitées ou floutées avant publication.</p></article>
-        <article><span>🌿</span><h2>Cadre de vie</h2><p>Les données servent à mieux comprendre les usages, les lieux de rencontre et les besoins d’aménagement.</p></article>
+        <article>
+          <span>✅</span>
+          <h2>Modération humaine</h2>
+          <p>
+            Les contributions sont relues avant publication. Une contribution peut être
+            publiée, reformulée, refusée ou archivée si elle contient des informations sensibles.
+          </p>
+        </article>
+
+        <article>
+          <span>🧒</span>
+          <h2>Protection des enfants</h2>
+          <p>
+            Les contributions d’enfants sont accompagnées par un adulte. Les dessins,
+            phrases et poèmes anonymisés sont privilégiés.
+          </p>
+        </article>
+
+        <article>
+          <span>📷</span>
+          <h2>Droit à l’image</h2>
+          <p>
+            Les photos de lieux et d’espaces publics sont privilégiées. Les photos de
+            personnes reconnaissables, en particulier d’enfants, font l’objet d’une vigilance renforcée.
+          </p>
+        </article>
+
+        <article>
+          <span>🌿</span>
+          <h2>Cadre de vie</h2>
+          <p>
+            Les données servent à nourrir un diagnostic urbain sensible, à valoriser la vie locale
+            et à appuyer l’amélioration du cadre de vie.
+          </p>
+        </article>
       </div>
+
+      <section className="panel">
+        <h2>Documents de référence</h2>
+        <p>
+          Ces documents constituent le socle de confiance de l’application. Ils sont à compléter
+          et à faire relire par un juriste, un DPO ou une collectivité avant un usage officiel.
+        </p>
+
+        <div className="dashboardGrid">
+          {documents.map((doc) => (
+            <article className="listItem" key={doc.href}>
+              <span>{doc.icon}</span>
+              <div>
+                <strong>{doc.title}</strong>
+                <p>{doc.text}</p>
+                <div className="toolsPanel urbanTools">
+                  <button
+  className="secondary"
+  type="button"
+  onClick={() => setOpenDoc(doc)}
+>
+  Lire dans l’application
+</button>
+
+<a className="primary" href={doc.href} download>
+  Télécharger
+</a>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+{openDoc && (
+  <section className="panel">
+    <div className="toolsPanel urbanTools">
+      <div>
+        <h2>{openDoc.title}</h2>
+        <p>Lecture intégrée du document.</p>
+      </div>
+
+      <button className="secondary" type="button" onClick={() => setOpenDoc(null)}>
+        Fermer la lecture
+      </button>
+    </div>
+
+    <iframe
+      title={openDoc.title}
+      src={openDoc.href}
+      style={{
+        width: "100%",
+        height: "720px",
+        border: "1px solid rgba(0,0,0,0.12)",
+        borderRadius: "18px",
+        background: "white",
+      }}
+    />
+
+    <div className="toolsPanel urbanTools">
+      <a className="secondary" href={openDoc.href} target="_blank" rel="noopener noreferrer">
+        Ouvrir dans un onglet
+      </a>
+      <a className="primary" href={openDoc.href} download>
+        Télécharger le PDF
+      </a>
+    </div>
+  </section>
+)}
+      <section className="panel">
+        <h2>Avant d’envoyer une contribution</h2>
+        <p>
+          Votre contribution est volontaire. Elle peut contenir un titre, un quartier,
+          un ressenti, une localisation choisie et une description courte.
+        </p>
+        <p>
+          Elle sera relue avant publication. Elle peut être anonymisée, reformulée,
+          refusée ou archivée si elle contient des données personnelles, une accusation
+          nominative, une photo sensible ou un contenu contraire à la charte.
+        </p>
+        <p>
+          Évitez les noms complets, les adresses personnelles, les photos de personnes
+          reconnaissables et les informations concernant des mineurs.
+        </p>
+      </section>
     </section>
   );
 }
