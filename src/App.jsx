@@ -595,19 +595,27 @@ function ContributionForm({ childMode = false, title, intro, types, defaultType,
     author,
     media: childMode ? "🎨 Dessin simulé" : "📷 Image simulée",
   });
+  const [acceptedRules, setAcceptedRules] = useState(false);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
   function submit(event) {
-    event.preventDefault();
-    if (!form.title.trim() || !form.description.trim()) {
-      alert("Merci d’ajouter un titre et quelques mots.");
-      return;
-    }
-    onSubmit(form);
+  event.preventDefault();
+
+  if (!form.title.trim() || !form.description.trim()) {
+    alert("Merci d’ajouter un titre et quelques mots.");
+    return;
   }
+
+  if (!acceptedRules) {
+    alert("Merci de confirmer que vous avez lu les règles de contribution avant l’envoi.");
+    return;
+  }
+
+  onSubmit(form);
+}
 
   return (
     <section className={childMode ? "page formPage children" : "page formPage"}>
@@ -658,8 +666,39 @@ function ContributionForm({ childMode = false, title, intro, types, defaultType,
           <small>{childMode ? "Pour les enfants, privilégier les dessins plutôt que les photos de visages." : "Dans cette V3, le fichier est seulement affiché par son nom."}</small>
         </label>
 
-        <div className="notice">Les contributions sont modérées avant publication. Les enfants restent anonymes.</div>
-        <button className="primary full" type="submit">Envoyer la contribution</button>
+        <div className="notice">
+  Les contributions sont modérées avant publication. Les enfants restent anonymes.
+</div>
+
+<label
+  className="notice compact"
+  style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}
+>
+  <input
+    type="checkbox"
+    checked={acceptedRules}
+    onChange={(event) => setAcceptedRules(event.target.checked)}
+    style={{ marginTop: "4px" }}
+  />
+  <span>
+    J’ai lu les règles de contribution et j’accepte que ma contribution soit relue
+    avant publication. Je m’engage à ne pas transmettre de données personnelles,
+    d’accusation nominative ou de photo sensible.
+    <br />
+    <button
+      className="secondary"
+      type="button"
+      onClick={() => setPage("protection")}
+      style={{ marginTop: "10px" }}
+    >
+      Lire les règles de protection
+    </button>
+  </span>
+</label>
+
+<button className="primary full" type="submit" disabled={!acceptedRules}>
+  Envoyer la contribution
+</button>
       </form>
     </section>
   );
