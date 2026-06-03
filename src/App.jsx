@@ -129,6 +129,9 @@ useEffect(() => {
     authListener.subscription.unsubscribe();
   };
 }, []);
+useEffect(() => {
+  loadPublishedContributions();
+}, []);
 
 useEffect(() => {
   if (session) {
@@ -139,6 +142,9 @@ useEffect(() => {
 }, [session]);
 
 function formatContributionFromDb(item) {
+  const latitude = Number(item.latitude);
+  const longitude = Number(item.longitude);
+
   return {
     id: item.id,
     layer: item.layer || "regards",
@@ -148,12 +154,30 @@ function formatContributionFromDb(item) {
     emotion: item.emotion,
     description: item.description,
     media: item.media_url || "📎 Média",
-    position: [item.latitude, item.longitude],
+    position: [latitude, longitude],
     status: item.status,
     created_at: item.created_at,
   };
 }
 
+async function loadPublishedContributions() {
+  const { data, error } = await supabase
+    .from("contributions")
+    .select("*")
+    .eq("status", "published")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const publishedFromDb = (data || [])
+    .filter((item) => item.latitude !== null && item.longitude !== null)
+    .map(formatContributionFromDb);
+
+  setContributions([...initialContributions, ...publishedFromDb]);
+}
 async function signInAdmin(email, password) {
   setAdminMessage("");
 
@@ -209,14 +233,18 @@ async function moderateContribution(id, newStatus) {
 
   setPendingContributions((current) => current.filter((item) => item.id !== id));
 
-  const message =
-    newStatus === "published"
-      ? "Contribution publiée."
-      : newStatus === "rejected"
-        ? "Contribution refusée."
-        : "Contribution archivée.";
+if (newStatus === "published") {
+  await loadPublishedContributions();
+}
 
-  setAdminMessage(message);
+const message =
+  newStatus === "published"
+    ? "Contribution publiée. Elle apparaît maintenant sur la carte publique."
+    : newStatus === "rejected"
+      ? "Contribution refusée."
+      : "Contribution archivée.";
+
+setAdminMessage(message);
 }
 async function addContribution(form) {
   const layer =
