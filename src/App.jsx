@@ -391,24 +391,97 @@ function Header({ page, setPage }) {
 
 function Home({ setPage, zoomQuartier }) {
   return (
-    <section className="page hero">
-      <div className="heroText">
-        <p className="eyebrow">Cartographie sensible et participative</p>
-        <h1>Lire Lomme à travers les lieux vécus.</h1>
-        <p className="lead">
-          Une carte simple pour déposer un regard, raconter un lieu, représenter la ville à hauteur d’enfants et situer la vie locale.
-        </p>
-        <div className="heroActions">
-          <button className="primary" onClick={() => setPage("carte")}>Explorer la carte</button>
-          <button className="secondary" onClick={() => setPage("ajout")}>Ajouter un regard</button>
+    <section className="page homePage">
+      <div className="homeHero">
+        <div className="heroText">
+          <p className="eyebrow">Cartographie sensible et participative</p>
+
+          <h1>Lomme à hauteur d’habitants</h1>
+
+          <p className="lead">
+            Une carte pour raconter les lieux vécus, les usages du quotidien,
+            les idées d’aménagement et la vie locale de Lomme.
+          </p>
+
+          <div className="heroActions">
+            <button className="primary" onClick={() => setPage("carte")}>
+              Explorer la carte
+            </button>
+            <button className="secondary" onClick={() => setPage("ajout")}>
+              Ajouter un regard
+            </button>
+            <button className="secondary" onClick={() => setPage("protection")}>
+              Lire les règles
+            </button>
+          </div>
+
+          <div className="trustBadge">
+            <strong>Contribution protégée</strong>
+            <span>
+              Chaque contribution est volontaire, relue avant publication et
+              utilisée pour mieux comprendre les besoins du territoire.
+            </span>
+          </div>
+        </div>
+
+        <div className="heroPhotoCard">
+          <img
+            src="/assets/lomme-accueil.jpeg"
+            alt="Vue urbaine de Lomme"
+            className="heroPhoto"
+          />
+          <div className="photoCaption">
+            <span>📍 Lomme</span>
+            <strong>Regarder la ville par ses usages</strong>
+          </div>
         </div>
       </div>
 
+      <div className="homeSteps">
+        <article className="stepCard">
+          <span>1</span>
+          <h2>Contribuer</h2>
+          <p>Un habitant partage un lieu aimé, un souvenir, un besoin ou une idée.</p>
+        </article>
+
+        <article className="stepCard">
+          <span>2</span>
+          <h2>Relire</h2>
+          <p>La contribution est vérifiée avant publication pour protéger les personnes.</p>
+        </article>
+
+        <article className="stepCard">
+          <span>3</span>
+          <h2>Comprendre</h2>
+          <p>Les regards publiés nourrissent une lecture sensible du territoire.</p>
+        </article>
+      </div>
+
       <div className="homeGrid">
-        <ActionCard icon="🗺️" title="Carte Leaflet" text="Fonds de carte, quartiers, marqueurs et couches activables." onClick={() => setPage("carte")} />
-        <ActionCard icon="🏘️" title="Zoom par quartier" text="Bourg, Délivrance, Marais, Mitterie et Mont-à-Camp." onClick={() => zoomQuartier("Bourg")} />
-        <ActionCard icon="🎨" title="Ville à hauteur d’enfants" text="Dessins, phrases, poèmes et ressentis accompagnés." onClick={() => setPage("enfants")} />
-        <ActionCard icon="🤝" title="Vie locale" text="Associations, événements, ateliers, ressources et animations." onClick={() => setPage("carte")} />
+        <ActionCard
+          icon="🗺️"
+          title="Explorer les quartiers"
+          text="Parcourir Bourg, Délivrance, Marais, Mitterie et Mont-à-Camp."
+          onClick={() => setPage("carte")}
+        />
+        <ActionCard
+          icon="🎨"
+          title="Ville à hauteur d’enfants"
+          text="Accueillir dessins, phrases, poèmes et ressentis accompagnés."
+          onClick={() => setPage("enfants")}
+        />
+        <ActionCard
+          icon="🤝"
+          title="Vie locale"
+          text="Valoriser les associations, événements, ateliers et lieux ressources."
+          onClick={() => setPage("carte")}
+        />
+        <ActionCard
+          icon="🏘️"
+          title="Zoomer sur un quartier"
+          text="Entrer directement dans une lecture de proximité."
+          onClick={() => zoomQuartier("Bourg")}
+        />
       </div>
     </section>
   );
