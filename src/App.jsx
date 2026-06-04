@@ -834,7 +834,53 @@ function Dashboard({
   };
 
   const activeAdminItems = safeAdminContributions.filter((item) => item.status === activeStatus);
+  const activeStatusLabel =
+  statusTabs.find((tab) => tab.key === activeStatus)?.label || "sélection";
 
+function countBy(rows, getLabel) {
+  const countsMap = rows.reduce((acc, item) => {
+    const label = getLabel(item) || "Non renseigné";
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(countsMap)
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+const diagnosticRows = activeAdminItems;
+const diagnosticTotal = diagnosticRows.length;
+
+const quartierStats = countBy(diagnosticRows, (item) => item.quartier).slice(0, 5);
+const emotionStats = countBy(diagnosticRows, (item) => item.emotion).slice(0, 5);
+const typeStats = countBy(diagnosticRows, (item) => item.type).slice(0, 5);
+const layerStats = countBy(
+  diagnosticRows,
+  (item) => layerLabels[item.layer] || item.layer
+).slice(0, 5);
+
+const recentDiagnosticRows = diagnosticRows.slice(0, 6);
+
+const diagnosticSummary =
+  diagnosticTotal === 0
+    ? [
+        "Aucune contribution dans cet onglet pour le moment.",
+        "L’aperçu diagnostic s’actualisera dès que des contributions seront disponibles.",
+      ]
+    : [
+        `L’onglet ${activeStatusLabel.toLowerCase()} rassemble ${diagnosticTotal} contribution${diagnosticTotal > 1 ? "s" : ""}.`,
+        quartierStats[0]
+          ? `Le quartier le plus représenté est ${quartierStats[0].label} avec ${quartierStats[0].count} contribution${quartierStats[0].count > 1 ? "s" : ""}.`
+          : "Les quartiers restent à consolider.",
+        emotionStats[0]
+          ? `Le ressenti dominant est ${emotionStats[0].label}.`
+          : "Les ressentis restent à compléter.",
+        typeStats[0]
+          ? `Le type de contribution le plus fréquent est ${typeStats[0].label}.`
+          : "Les types de contributions restent à préciser.",
+      ];
+ 
   const counts = {
     total: items.length,
     regards: items.filter((i) => i.layer === "regards").length,
@@ -856,6 +902,128 @@ function Dashboard({
     await signInAdmin(adminEmail, adminPassword);
     setLoginLoading(false);
   }
+
+  function exportContributionsCsv(rows, label = "diagnostic") {
+  if (!rows || rows.length === 0) {
+    alert("Aucune contribution à exporter dans cette sélection.");
+    return;
+  }
+
+  const headers = [
+    "date_depot",
+    "quartier",
+    "couche",
+    "type",
+    "ressenti",
+    "statut",
+    "titre",
+    "description",
+    "latitude",
+    "longitude",
+  ];
+
+  const escapeCsv = (value) => {
+    const text = String(value ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const lines = rows.map((item) => {
+    const latitude = Array.isArray(item.position) ? item.position[0] : "";
+    const longitude = Array.isArray(item.position) ? item.position[1] : "";
+
+    return [
+      item.created_at ? new Date(item.created_at).toLocaleDateString("fr-FR") : "",
+      item.quartier,
+      layerLabels[item.layer] || item.layer,
+      item.type,
+      item.emotion,
+      item.status,
+      item.title,
+      item.description,
+      latitude,
+      longitude,
+    ].map(escapeCsv).join(";");
+  });
+
+  const csv = `\ufeff${headers.join(";")}\n${lines.join("\n")}`;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+
+  link.href = url;
+  link.download = `diagnostic-lomme-${label}-${date}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
+}
+
+  function exportContributionsCsv(rows, label = "diagnostic") {
+  if (!rows || rows.length === 0) {
+    alert("Aucune contribution à exporter dans cette sélection.");
+    return;
+  }
+
+  const headers = [
+    "date_depot",
+    "quartier",
+    "couche",
+    "type",
+    "ressenti",
+    "statut",
+    "titre",
+    "description",
+    "latitude",
+    "longitude",
+  ];
+
+  const escapeCsv = (value) => {
+    const text = String(value ?? "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return `"${text.replace(/"/g, '""')}"`;
+  };
+
+  const lines = rows.map((item) => {
+    const latitude = Array.isArray(item.position) ? item.position[0] : "";
+    const longitude = Array.isArray(item.position) ? item.position[1] : "";
+
+    return [
+      item.created_at ? new Date(item.created_at).toLocaleDateString("fr-FR") : "",
+      item.quartier,
+      layerLabels[item.layer] || item.layer,
+      item.type,
+      item.emotion,
+      item.status,
+      item.title,
+      item.description,
+      latitude,
+      longitude,
+    ].map(escapeCsv).join(";");
+  });
+
+  const csv = `\ufeff${headers.join(";")}\n${lines.join("\n")}`;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+
+  link.href = url;
+  link.download = `diagnostic-lomme-${label}-${date}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(url);
+}
 
   return (
     <section className="page">
@@ -975,31 +1143,40 @@ function Dashboard({
 
                       <div className="toolsPanel urbanTools">
                         {item.status !== "published" && (
-                          <button
-                            className="primary"
-                            onClick={() => moderateContribution(item.id, "published")}
-                          >
-                            Publier
-                          </button>
-                        )}
+  <button
+    className="primary"
+    onClick={() => moderateContribution(item.id, "published")}
+  >
+    {item.status === "pending" ? "Publier" : "Republier"}
+  </button>
+)}
 
-                        {item.status !== "rejected" && (
-                          <button
-                            className="secondary"
-                            onClick={() => moderateContribution(item.id, "rejected")}
-                          >
-                            Refuser
-                          </button>
-                        )}
+{item.status !== "rejected" && item.status !== "published" && (
+  <button
+    className="secondary"
+    onClick={() => moderateContribution(item.id, "rejected")}
+  >
+    Refuser
+  </button>
+)}
 
-                        {item.status !== "archived" && (
-                          <button
-                            className="secondary"
-                            onClick={() => moderateContribution(item.id, "archived")}
-                          >
-                            Archiver
-                          </button>
-                        )}
+{item.status === "published" && (
+  <button
+    className="secondary"
+    onClick={() => moderateContribution(item.id, "archived")}
+  >
+    Retirer de la carte / Archiver
+  </button>
+)}
+
+{item.status !== "archived" && item.status !== "published" && (
+  <button
+    className="secondary"
+    onClick={() => moderateContribution(item.id, "archived")}
+  >
+    Archiver
+  </button>
+)}
 
                         <button
                           className="secondary"
@@ -1030,13 +1207,114 @@ function Dashboard({
           options={["Tous", ...emotions]}
           onChange={(value) => setFilters((f) => ({ ...f, emotion: value }))}
         />
+
         <button
-          className="secondary"
-          onClick={() => alert("Export diagnostic à développer")}
-        >
-          Exporter le diagnostic
-        </button>
+  className="secondary"
+  onClick={() => exportContributionsCsv(activeAdminItems, activeStatus)}
+>
+  Exporter CSV de l’onglet
+</button>
+
+<button
+  className="secondary"
+  onClick={() =>
+    exportContributionsCsv(
+      safeAdminContributions.filter((item) => item.status === "published"),
+      "publiees"
+    )
+  }
+>
+  Exporter CSV publiées
+</button>
+
+        <button
+  className="secondary"
+  onClick={() => exportContributionsCsv(activeAdminItems, activeStatus)}
+>
+  Exporter CSV de l’onglet
+</button>
+
+<button
+  className="secondary"
+  onClick={() =>
+    exportContributionsCsv(
+      safeAdminContributions.filter((item) => item.status === "published"),
+      "publiees"
+    )
+  }
+>
+  Exporter CSV publiées
+</button>
       </div>
+
+
+<section className="panel diagnosticPreviewPanel">
+  <div className="diagnosticPreviewHeader">
+    <div>
+      <h2>Aperçu diagnostic</h2>
+      <p>
+        Lecture rapide de l’onglet “{activeStatusLabel}”. Cet aperçu aide à
+        comprendre les tendances avant export CSV ou futur export PDF.
+      </p>
+    </div>
+
+    <div className="diagnosticBadge">
+      <strong>{diagnosticTotal}</strong>
+      <span>contribution{diagnosticTotal > 1 ? "s" : ""}</span>
+    </div>
+  </div>
+
+  <div className="diagnosticSummary">
+    <h3>Lecture rapide</h3>
+    {diagnosticSummary.map((sentence) => (
+      <p key={sentence}>{sentence}</p>
+    ))}
+  </div>
+
+  <div className="diagnosticColumns">
+    <DiagnosticMiniList title="Par quartier" rows={quartierStats} />
+    <DiagnosticMiniList title="Par ressenti" rows={emotionStats} />
+    <DiagnosticMiniList title="Par type" rows={typeStats} />
+    <DiagnosticMiniList title="Par couche" rows={layerStats} />
+  </div>
+
+  <div className="diagnosticTableWrap">
+    <h3>Dernières contributions de l’onglet</h3>
+
+    {recentDiagnosticRows.length === 0 ? (
+      <div className="notice compact">
+        Aucune contribution à afficher dans cet aperçu.
+      </div>
+    ) : (
+      <table className="diagnosticTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Quartier</th>
+            <th>Type</th>
+            <th>Ressenti</th>
+            <th>Titre</th>
+          </tr>
+        </thead>
+        <tbody>
+          {recentDiagnosticRows.map((item) => (
+            <tr key={item.id}>
+              <td>
+                {item.created_at
+                  ? new Date(item.created_at).toLocaleDateString("fr-FR")
+                  : "—"}
+              </td>
+              <td>{item.quartier || "—"}</td>
+              <td>{item.type || "—"}</td>
+              <td>{item.emotion || "—"}</td>
+              <td>{item.title || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
+</section>
 
       <div className="dashboardGrid">
         <section className="panel">
@@ -1086,6 +1364,27 @@ function Dashboard({
     </section>
   );
 }
+
+
+function DiagnosticMiniList({ title, rows }) {
+  return (
+    <article className="diagnosticMiniList">
+      <h3>{title}</h3>
+
+      {rows.length === 0 ? (
+        <p>Aucune donnée.</p>
+      ) : (
+        rows.map((row) => (
+          <div className="diagnosticMiniRow" key={row.label}>
+            <span>{row.label}</span>
+            <strong>{row.count}</strong>
+          </div>
+        ))
+      )}
+    </article>
+  );
+}
+
 
 function Protection() {
   const documents = [
