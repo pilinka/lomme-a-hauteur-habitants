@@ -580,4 +580,107 @@ h2 { font-family: Georgia, "Times New Roman", serif; margin-top: 0; }
   }
 }
 
+.adminModerationPanel {
+  display: grid;
+  gap: 18px;
+}
+
+.adminPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.adminPanelHeader p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 0;
+}
+
+.statusTabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.statusTab {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 22px;
+  padding: 16px;
+  text-align: left;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 6px;
+}
+
+.statusTab strong {
+  font-size: 1rem;
+}
+
+.statusTab span {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.statusTab small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.statusTab.active {
+  background: var(--ink);
+  color: white;
+  border-color: var(--ink);
+}
+
+.statusTab.active small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.adminList {
+  display: grid;
+  gap: 12px;
+}
+
+.adminItem {
+  align-items: flex-start;
+}
+
+.adminItemHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.adminItemHeader em {
+  font-style: normal;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .statusTabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .adminPanelHeader {
+    display: grid;
+  }
+}
+
+@media (max-width: 560px) {
+  .statusTabs {
+    grid-template-columns: 1fr;
+  }
+}
+
 

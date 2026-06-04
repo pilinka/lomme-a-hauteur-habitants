@@ -74,6 +74,7 @@ export default function App() {
   const [vieLocale] = useState(initialVieLocale);
   const [session, setSession] = useState(null);
   const [pendingContributions, setPendingContributions] = useState([]);
+  const [adminContributions, setAdminContributions] = useState([]);
   const [adminMessage, setAdminMessage] = useState("");
   const [selected, setSelected] = useState(initialContributions[0]);
   const [draftPoint, setDraftPoint] = useState(null);
@@ -204,17 +205,22 @@ async function loadPendingContributions() {
   const { data, error } = await supabase
     .from("contributions")
     .select("*")
-    .eq("status", "pending")
+    .in("status", ["pending", "published", "rejected", "archived"])
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error(error);
-    setAdminMessage("Impossible de charger les contributions en attente.");
+    setAdminMessage("Impossible de charger les contributions de modération.");
     return;
   }
 
-  setPendingContributions((data || []).map(formatContributionFromDb));
+  const formatted = (data || []).map(formatContributionFromDb);
+
+  setAdminContributions(formatted);
+  setPendingContributions(formatted.filter((item) => item.status === "pending"));
 }
+
+  
 
 async function moderateContribution(id, newStatus) {
   const { error } = await supabase
@@ -231,11 +237,8 @@ async function moderateContribution(id, newStatus) {
     return;
   }
 
-  setPendingContributions((current) => current.filter((item) => item.id !== id));
-
-if (newStatus === "published") {
-  await loadPublishedContributions();
-}
+await loadPendingContributions();
+await loadPublishedContributions();
 
 const message =
   newStatus === "published"
@@ -287,79 +290,83 @@ async function addContribution(form) {
   alert("Merci, votre contribution a bien été envoyée. Elle est maintenant en attente de validation.");
   setPage("carte");
 }
-  return (
-    <main>
-      <Header page={page} setPage={setPage} />
+  
+return (
+  <main>
+    <Header page={page} setPage={setPage} />
 
-      {page === "accueil" && <Home setPage={setPage} zoomQuartier={zoomQuartier} />}
+    {page === "accueil" && (
+      <Home setPage={setPage} zoomQuartier={zoomQuartier} />
+    )}
 
-      {page === "carte" && (
-        <MapPage
-          items={filteredItems}
-          selected={selected}
-          setSelected={setSelected}
-          visibleLayers={visibleLayers}
-          toggleLayer={toggleLayer}
-          filters={filters}
-          setFilters={setFilters}
-          zoomQuartier={zoomQuartier}
-          zoomTarget={zoomTarget}
-          setDraftPoint={setDraftPoint}
-          draftPoint={draftPoint}
-          setPage={setPage}
-        />
-      )}
+    {page === "carte" && (
+      <MapPage
+        items={filteredItems}
+        selected={selected}
+        setSelected={setSelected}
+        visibleLayers={visibleLayers}
+        toggleLayer={toggleLayer}
+        filters={filters}
+        setFilters={setFilters}
+        zoomQuartier={zoomQuartier}
+        zoomTarget={zoomTarget}
+        setDraftPoint={setDraftPoint}
+        draftPoint={draftPoint}
+        setPage={setPage}
+      />
+    )}
 
-      {page === "ajout" && (
-        <ContributionForm
-          title="Ajouter un regard habitant"
-          intro="Déposez une photo, un souvenir, un lieu aimé ou une idée. Votre contribution sera relue avant publication."
-          types={typesHabitants}
-          defaultType="Lieu aimé"
-          author="Habitant"
-          draftPoint={draftPoint}
-          setPage={setPage}
-          onSubmit={addContribution}
-        />
-      )}
+    {page === "ajout" && (
+      <ContributionForm
+        title="Ajouter un regard habitant"
+        intro="Déposez une photo, un souvenir, un lieu aimé ou une idée. Votre contribution sera relue avant publication."
+        types={typesHabitants}
+        defaultType="Lieu aimé"
+        author="Habitant"
+        draftPoint={draftPoint}
+        setPage={setPage}
+        onSubmit={addContribution}
+      />
+    )}
 
-      {page === "enfants" && (
-        <ContributionForm
-          childMode
-          title="Ville à hauteur d’enfants"
-          intro="Déposez un dessin, une phrase ou un poème. La contribution doit être accompagnée par un adulte."
-          types={typesEnfants}
-          defaultType="Dessin d’enfant"
-          author="Enfant accompagné"
-          draftPoint={draftPoint}
-          setPage={setPage}
-          onSubmit={addContribution}
-        />
-      )}
+    {page === "enfants" && (
+      <ContributionForm
+        childMode
+        title="Ville à hauteur d’enfants"
+        intro="Déposez un dessin, une phrase ou un poème. La contribution doit être accompagnée par un adulte."
+        types={typesEnfants}
+        defaultType="Dessin d’enfant"
+        author="Enfant accompagné"
+        draftPoint={draftPoint}
+        setPage={setPage}
+        onSubmit={addContribution}
+      />
+    )}
 
-      {page === "urbanistes" && (
-  <Dashboard
-    items={allItems}
-    filteredItems={filteredItems}
-    filters={filters}
-    setFilters={setFilters}
-    zoomQuartier={zoomQuartier}
-    session={session}
-    pendingContributions={pendingContributions}
-    adminMessage={adminMessage}
-    signInAdmin={signInAdmin}
-    signOutAdmin={signOutAdmin}
-    loadPendingContributions={loadPendingContributions}
-    moderateContribution={moderateContribution}
-  />
-)}
+    {page === "urbanistes" && (
+      <Dashboard
+        items={allItems}
+        filteredItems={filteredItems}
+        filters={filters}
+        setFilters={setFilters}
+        zoomQuartier={zoomQuartier}
+        session={session}
+        pendingContributions={pendingContributions}
+        adminContributions={adminContributions}
+        adminMessage={adminMessage}
+        signInAdmin={signInAdmin}
+        signOutAdmin={signOutAdmin}
+        loadPendingContributions={loadPendingContributions}
+        moderateContribution={moderateContribution}
+      />
+    )}
 
-      {page === "protection" && <Protection />}
-    </main>
-  );
+    {page === "protection" && <Protection />}
+  </main>
+);
 }
 
-function Header({ page, setPage }) {
+function Header({ page, setPage }) {       
   const links = [
     ["accueil", "Accueil"],
     ["carte", "Carte"],
@@ -798,6 +805,7 @@ function Dashboard({
   zoomQuartier,
   session,
   pendingContributions,
+  adminContributions,
   adminMessage,
   signInAdmin,
   signOutAdmin,
@@ -807,6 +815,25 @@ function Dashboard({
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [activeStatus, setActiveStatus] = useState("pending");
+
+  const statusTabs = [
+    { key: "pending", label: "En attente", helper: "À relire avant publication" },
+    { key: "published", label: "Publiées", helper: "Visibles sur la carte publique" },
+    { key: "rejected", label: "Refusées", helper: "Conservées côté modération" },
+    { key: "archived", label: "Archivées", helper: "Retirées de l’affichage public" },
+  ];
+
+  const safeAdminContributions = adminContributions || [];
+
+  const moderationCounts = {
+    pending: safeAdminContributions.filter((item) => item.status === "pending").length,
+    published: safeAdminContributions.filter((item) => item.status === "published").length,
+    rejected: safeAdminContributions.filter((item) => item.status === "rejected").length,
+    archived: safeAdminContributions.filter((item) => item.status === "archived").length,
+  };
+
+  const activeAdminItems = safeAdminContributions.filter((item) => item.status === activeStatus);
 
   const counts = {
     total: items.length,
@@ -833,7 +860,7 @@ function Dashboard({
   return (
     <section className="page">
       <p className="eyebrow">Espace urbanistes</p>
-      <h1>Diagnostic sensible et modération</h1>
+      <h1>Atelier diagnostic et modération</h1>
       <p className="intro">
         Cet espace aide à croiser paroles habitantes, regards d’enfants, vie locale,
         idées d’aménagement et décisions de modération.
@@ -847,12 +874,22 @@ function Dashboard({
         <Stat number={counts.idees} label="idées pour demain" />
       </div>
 
-      <section className="panel">
-        <h2>Contributions en attente de validation</h2>
-        <p>
-          Les contributions déposées par les habitants arrivent ici avant publication.
-          La décision reste humaine : publier, refuser ou archiver.
-        </p>
+      <section className="panel adminModerationPanel">
+        <div className="adminPanelHeader">
+          <div>
+            <h2>Atelier de modération</h2>
+            <p>
+              Les contributions sont relues avant publication. La décision reste humaine :
+              publier, refuser ou archiver.
+            </p>
+          </div>
+
+          {session && (
+            <button className="secondary" onClick={loadPendingContributions}>
+              Actualiser
+            </button>
+          )}
+        </div>
 
         {!session ? (
           <form className="cardForm" onSubmit={handleAdminLogin}>
@@ -885,9 +922,6 @@ function Dashboard({
         ) : (
           <>
             <div className="toolsPanel urbanTools">
-              <button className="secondary" onClick={loadPendingContributions}>
-                Actualiser les contributions
-              </button>
               <button className="secondary" onClick={signOutAdmin}>
                 Se déconnecter
               </button>
@@ -895,41 +929,83 @@ function Dashboard({
 
             {adminMessage && <div className="notice compact">{adminMessage}</div>}
 
-            {pendingContributions.length === 0 ? (
+            <div className="statusTabs">
+              {statusTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  className={activeStatus === tab.key ? "statusTab active" : "statusTab"}
+                  onClick={() => setActiveStatus(tab.key)}
+                >
+                  <strong>{tab.label}</strong>
+                  <span>{moderationCounts[tab.key]}</span>
+                  <small>{tab.helper}</small>
+                </button>
+              ))}
+            </div>
+
+            {activeAdminItems.length === 0 ? (
               <div className="notice compact">
-                Aucune contribution en attente pour le moment.
+                Aucun contenu dans cet onglet pour le moment.
               </div>
             ) : (
-              <section className="list">
-                {pendingContributions.map((item) => (
-                  <article className="listItem" key={item.id}>
+              <section className="list adminList">
+                {activeAdminItems.map((item) => (
+                  <article className="listItem adminItem" key={item.id}>
                     <span>{typeIcon[item.type] || "📍"}</span>
+
                     <div>
-                      <strong>{item.title}</strong>
+                      <div className="adminItemHeader">
+                        <strong>{item.title}</strong>
+                        <em>{item.status}</em>
+                      </div>
+
                       <p>
                         {item.quartier} · {layerLabels[item.layer] || item.type}
                         {item.emotion ? ` · ${emotionIcon[item.emotion]} ${item.emotion}` : ""}
                       </p>
+
                       <p>{item.description}</p>
 
+                      <p className="meta">
+                        Déposé le :{" "}
+                        {item.created_at
+                          ? new Date(item.created_at).toLocaleDateString("fr-FR")
+                          : "date inconnue"}
+                      </p>
+
                       <div className="toolsPanel urbanTools">
-                        <button
-                          className="primary"
-                          onClick={() => moderateContribution(item.id, "published")}
-                        >
-                          Publier
-                        </button>
+                        {item.status !== "published" && (
+                          <button
+                            className="primary"
+                            onClick={() => moderateContribution(item.id, "published")}
+                          >
+                            Publier
+                          </button>
+                        )}
+
+                        {item.status !== "rejected" && (
+                          <button
+                            className="secondary"
+                            onClick={() => moderateContribution(item.id, "rejected")}
+                          >
+                            Refuser
+                          </button>
+                        )}
+
+                        {item.status !== "archived" && (
+                          <button
+                            className="secondary"
+                            onClick={() => moderateContribution(item.id, "archived")}
+                          >
+                            Archiver
+                          </button>
+                        )}
+
                         <button
                           className="secondary"
-                          onClick={() => moderateContribution(item.id, "rejected")}
+                          onClick={() => zoomQuartier(item.quartier)}
                         >
-                          Refuser
-                        </button>
-                        <button
-                          className="secondary"
-                          onClick={() => moderateContribution(item.id, "archived")}
-                        >
-                          Archiver
+                          Voir le quartier
                         </button>
                       </div>
                     </div>
@@ -956,7 +1032,7 @@ function Dashboard({
         />
         <button
           className="secondary"
-          onClick={() => alert("Export fictif du diagnostic sensible")}
+          onClick={() => alert("Export diagnostic à développer")}
         >
           Exporter le diagnostic
         </button>
@@ -1010,6 +1086,7 @@ function Dashboard({
     </section>
   );
 }
+
 function Protection() {
   const documents = [
   {
