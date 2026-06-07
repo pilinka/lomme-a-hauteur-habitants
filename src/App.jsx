@@ -1162,7 +1162,36 @@ function Dashboard({
   const [loginLoading, setLoginLoading] = useState(false);
   const [activeStatus, setActiveStatus] = useState("pending");
   const [moderationDecision, setModerationDecision] = useState(null);
-  
+  const [userProfile, setUserProfile] = useState(null);
+
+  useEffect(() => {
+  if (!session?.user?.id) {
+    setUserProfile(null);
+    return;
+  }
+
+  async function loadUserProfile() {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("first_name, last_name, email, role, status")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error(error);
+      setUserProfile(null);
+      return;
+    }
+
+    setUserProfile(data);
+  }
+
+  loadUserProfile();
+}, [session]);
+
+  const canManageAccess =
+  userProfile?.status === "active" &&
+  ["gestionnaire", "admin"].includes(userProfile?.role);
 
   const statusTabs = [
     { key: "pending", label: "En attente", helper: "À relire avant publication" },
@@ -1596,7 +1625,13 @@ if (!session) {
                 </button>
               ))}
             </div>
-            <AuthorizationsPanel />
+            {canManageAccess ? (
+  <AuthorizationsPanel />
+) : (
+  <div className="notice compact">
+    La gestion des accès internes est réservée au gestionnaire ou à l’administrateur du projet.
+  </div>
+)}
 
             {activeAdminItems.length === 0 ? (
               <div className="notice compact">
@@ -1937,50 +1972,95 @@ if (!session) {
 }
 
 function AuthorizationsPanel() {
+  const accessRows = [
+    {
+      role: "Gestionnaire des accès",
+      permissions: "Créer les comptes, attribuer les rôles, désactiver les accès",
+      status: "Rôle réservé",
+    },
+    {
+      role: "Administrateur",
+      permissions: "Paramétrage, modération, exports et suivi général",
+      status: "Accès complet",
+    },
+    {
+      role: "Urbaniste",
+      permissions: "Lecture des contributions, diagnostic, exports autorisés",
+      status: "Accès métier",
+    },
+    {
+      role: "Modérateur",
+      permissions: "Relecture, publication, refus et archivage",
+      status: "Accès modération",
+    },
+    {
+      role: "Lecteur interne",
+      permissions: "Consultation des contenus validés et des synthèses",
+      status: "Accès limité",
+    },
+  ];
+
   return (
-    <section className="panel">
-      <p className="eyebrow">Dossier interne</p>
-      <h2>Contrats et autorisations</h2>
+    <section className="accessPanel">
+      <div className="accessHeader">
+        <div>
+          <p className="eyebrow">Accès interne</p>
+          <h2>Gestion des accès internes</h2>
+          <p>
+            Cette rubrique est destinée au gestionnaire des accès. Elle prépare
+            la gestion des comptes autorisés à utiliser l’espace urbanistes :
+            identité, adresse e-mail, rôle, niveau d’accès et statut du compte.
+          </p>
+        </div>
 
-      <p>
-        Cet espace rassemble les éléments sensibles liés aux contributions :
-        droit à l’image, autorisation parentale, acceptation de la charte,
-        demande de retrait et note interne.
-      </p>
+        <span className="accessBadge">Réservé gestionnaire</span>
+      </div>
 
-      <div className="dashboardGrid">
-        <article className="listItem">
-          <span>📄</span>
-          <div>
-            <strong>Acceptation de la charte</strong>
-            <p>Conserver la version de la charte acceptée et la date d’acceptation.</p>
-          </div>
+      <div className="accessMetrics">
+        <article>
+          <strong>Comptes</strong>
+          <span>Nom, prénom, e-mail</span>
         </article>
 
-        <article className="listItem">
-          <span>🧒</span>
-          <div>
-            <strong>Autorisation parentale</strong>
-            <p>Prévoir un suivi spécifique pour les contributions issues d’ateliers enfants.</p>
-          </div>
+        <article>
+          <strong>Rôles</strong>
+          <span>Gestionnaire · admin · urbaniste · modérateur</span>
         </article>
 
-        <article className="listItem">
-          <span>📷</span>
-          <div>
-            <strong>Droit à l’image</strong>
-            <p>Suivre les photos sensibles, les demandes de floutage et les justificatifs.</p>
-          </div>
-        </article>
-
-        <article className="listItem">
-          <span>✉️</span>
-          <div>
-            <strong>Demandes de retrait</strong>
-            <p>Centraliser les demandes de correction, retrait ou anonymisation.</p>
-          </div>
+        <article>
+          <strong>Traçabilité</strong>
+          <span>Décisions, accès et exports internes</span>
         </article>
       </div>
+
+      <div className="accessTableWrap">
+        <table className="accessTable">
+          <thead>
+            <tr>
+              <th>Profil</th>
+              <th>Droits prévus</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {accessRows.map((row) => (
+              <tr key={row.role}>
+                <td>{row.role}</td>
+                <td>{row.permissions}</td>
+                <td>
+                  <span className="statusPill">{row.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="accessNote">
+        Cette gestion des accès sera réservée au gestionnaire ou à
+        l’administrateur du projet lorsque les rôles Supabase seront activés.
+      </p>
     </section>
   );
 }
