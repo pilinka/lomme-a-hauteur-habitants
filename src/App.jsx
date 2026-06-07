@@ -1250,6 +1250,90 @@ const diagnosticSummary =
     setLoginLoading(false);
   }
 
+  async function handlePasswordReset() {
+  if (!adminEmail.trim()) {
+    alert("Indiquez votre adresse e-mail avant de demander un nouveau mot de passe.");
+    return;
+  }
+
+  setLoginLoading(true);
+
+  const { error } = await supabase.auth.resetPasswordForEmail(adminEmail, {
+    redirectTo: window.location.origin,
+  });
+
+  setLoginLoading(false);
+
+  if (error) {
+    console.error(error);
+    alert("La demande de réinitialisation n’a pas pu être envoyée.");
+    return;
+  }
+
+  alert("Si ce compte est autorisé, un lien de réinitialisation vient d’être envoyé.");
+}
+
+if (!session) {
+  return (
+    <section className="page urbanLoginPage">
+      <div className="loginShell">
+        <div>
+          <p className="eyebrow">Espace interne</p>
+          <h1>Espace urbanistes</h1>
+          <p className="intro">
+            Accès réservé aux personnes autorisées. Les contributions en attente,
+            les exports, les notes internes et les autorisations sont visibles
+            uniquement après connexion.
+          </p>
+        </div>
+
+        <form className="cardForm loginCard" onSubmit={handleAdminLogin}>
+          <label className="field">
+            <span>E-mail</span>
+            <input
+              type="email"
+              value={adminEmail}
+              onChange={(event) => setAdminEmail(event.target.value)}
+              placeholder="adresse e-mail autorisée"
+              autoComplete="email"
+            />
+          </label>
+
+          <label className="field">
+            <span>Mot de passe</span>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(event) => setAdminPassword(event.target.value)}
+              placeholder="mot de passe"
+              autoComplete="current-password"
+            />
+          </label>
+
+          {adminMessage && <div className="notice compact">{adminMessage}</div>}
+
+          <button className="primary full" type="submit" disabled={loginLoading}>
+            {loginLoading ? "Connexion..." : "Se connecter"}
+          </button>
+
+          <button
+            className="secondary full"
+            type="button"
+            onClick={handlePasswordReset}
+            disabled={loginLoading}
+          >
+            Mot de passe oublié
+          </button>
+
+          <div className="notice compact validationNotice">
+            L’accès est réservé aux comptes autorisés par l’administrateur du projet.
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
+
  async function handlePasswordReset() {
   const email = adminEmail.trim();
 
@@ -1512,6 +1596,7 @@ const diagnosticSummary =
                 </button>
               ))}
             </div>
+            <AuthorizationsPanel />
 
             {activeAdminItems.length === 0 ? (
               <div className="notice compact">
@@ -1851,6 +1936,54 @@ const diagnosticSummary =
   );
 }
 
+function AuthorizationsPanel() {
+  return (
+    <section className="panel">
+      <p className="eyebrow">Dossier interne</p>
+      <h2>Contrats et autorisations</h2>
+
+      <p>
+        Cet espace rassemble les éléments sensibles liés aux contributions :
+        droit à l’image, autorisation parentale, acceptation de la charte,
+        demande de retrait et note interne.
+      </p>
+
+      <div className="dashboardGrid">
+        <article className="listItem">
+          <span>📄</span>
+          <div>
+            <strong>Acceptation de la charte</strong>
+            <p>Conserver la version de la charte acceptée et la date d’acceptation.</p>
+          </div>
+        </article>
+
+        <article className="listItem">
+          <span>🧒</span>
+          <div>
+            <strong>Autorisation parentale</strong>
+            <p>Prévoir un suivi spécifique pour les contributions issues d’ateliers enfants.</p>
+          </div>
+        </article>
+
+        <article className="listItem">
+          <span>📷</span>
+          <div>
+            <strong>Droit à l’image</strong>
+            <p>Suivre les photos sensibles, les demandes de floutage et les justificatifs.</p>
+          </div>
+        </article>
+
+        <article className="listItem">
+          <span>✉️</span>
+          <div>
+            <strong>Demandes de retrait</strong>
+            <p>Centraliser les demandes de correction, retrait ou anonymisation.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
 
 function DiagnosticMiniList({ title, rows }) {
   return (
