@@ -917,7 +917,9 @@ function SelectedCard({ selected, setPage }) {
       <h2>{selected.title}</h2>
       <p className="meta">{selected.quartier} · {emotionIcon[selected.emotion]} {selected.emotion}</p>
       <p>{selected.description}</p>
-      <div className="notice"><strong>Statut :</strong> {selected.status}</div>
+      <div className="notice compact validationNotice">
+       Contribution relue avant publication.
+      </div>
     </section>
   );
 }

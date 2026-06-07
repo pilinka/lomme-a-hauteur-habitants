@@ -1044,5 +1044,19 @@ h2 { font-family: Georgia, "Times New Roman", serif; margin-top: 0; }
   border-color: var(--ink);
 }
 
+.validationNotice {
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  border-radius: 14px;
+  margin-top: 12px;
+}
 
+.validationNotice {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  border-radius: 12px;
+  margin-top: 10px;
+}
 
