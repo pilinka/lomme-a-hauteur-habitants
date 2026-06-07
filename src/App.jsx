@@ -76,6 +76,12 @@ export default function App() {
   const [pendingContributions, setPendingContributions] = useState([]);
   const [adminContributions, setAdminContributions] = useState([]);
   const [adminMessage, setAdminMessage] = useState("");
+  const [adminLoginAttempts, setAdminLoginAttempts] = useState(0);
+  const [adminLockUntil, setAdminLockUntil] = useState(null);
+  const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false);
+const [newAdminPassword, setNewAdminPassword] = useState("");
+const [confirmAdminPassword, setConfirmAdminPassword] = useState("");
+const [passwordRecoveryMessage, setPasswordRecoveryMessage] = useState("");
   const [selected, setSelected] = useState(initialContributions[0]);
   const [draftPoint, setDraftPoint] = useState(null);
   const [zoomTarget, setZoomTarget] = useState(quartiersBounds["Toute la ville"]);
@@ -117,19 +123,132 @@ export default function App() {
     setFilters((current) => ({ ...current, quartier: name === "Toute la ville" ? "Tous" : name }));
     setPage("carte");
   }
-useEffect(() => {
+
+  useEffect(() => {
   supabase.auth.getSession().then(({ data }) => {
     setSession(data.session);
   });
 
-  const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-    setSession(currentSession);
-  });
+  const { data: authListener } = supabase.auth.onAuthStateChange(
+    (event, currentSession) => {
+      setSession(currentSession);
+
+      if (event === "PASSWORD_RECOVERY") {
+        setPage("urbanistes");
+        setPasswordRecoveryOpen(true);
+        setPasswordRecoveryMessage("Saisis un nouveau mot de passe administrateur.");
+      }
+    }
+  );
 
   return () => {
     authListener.subscription.unsubscribe();
   };
 }, []);
+
+async function updateRecoveredPassword() {
+  if (newAdminPassword.length < 8) {
+    setPasswordRecoveryMessage("Le mot de passe doit contenir au moins 8 caractères.");
+    return;
+  }
+
+  if (newAdminPassword !== confirmAdminPassword) {
+    setPasswordRecoveryMessage("Les deux mots de passe ne correspondent pas.");
+    return;
+  }
+
+  setPasswordRecoveryMessage("Mise à jour du mot de passe en cours...");
+
+  const { error } = await supabase.auth.updateUser({
+    password: newAdminPassword,
+  });
+
+  if (error) {
+    console.error(error);
+    setPasswordRecoveryMessage("Le mot de passe n’a pas pu être mis à jour.");
+    return;
+  }
+
+  setPasswordRecoveryMessage("Mot de passe mis à jour. Tu peux maintenant te reconnecter.");
+  setNewAdminPassword("");
+  setConfirmAdminPassword("");
+
+  setTimeout(async () => {
+    setPasswordRecoveryOpen(false);
+    await supabase.auth.signOut();
+    setSession(null);
+    setAdminMessage("Mot de passe mis à jour. Connecte-toi avec le nouveau mot de passe.");
+  }, 1200);
+}
+
+async function updateRecoveredPassword() {
+
+  if (newAdminPassword.length < 8) {
+
+    setPasswordRecoveryMessage("Le mot de passe doit contenir au moins 8 caractères.");
+
+    return;
+
+  }
+
+
+
+  if (newAdminPassword !== confirmAdminPassword) {
+
+    setPasswordRecoveryMessage("Les deux mots de passe ne correspondent pas.");
+
+    return;
+
+  }
+
+
+
+  setPasswordRecoveryMessage("Mise à jour du mot de passe en cours...");
+
+
+
+  const { error } = await supabase.auth.updateUser({
+
+    password: newAdminPassword,
+
+  });
+
+
+
+  if (error) {
+
+    console.error(error);
+
+    setPasswordRecoveryMessage("Le mot de passe n’a pas pu être mis à jour.");
+
+    return;
+
+  }
+
+
+
+  setPasswordRecoveryMessage("Mot de passe mis à jour. Tu peux maintenant te reconnecter.");
+
+  setNewAdminPassword("");
+
+  setConfirmAdminPassword("");
+
+
+
+  setTimeout(async () => {
+
+    setPasswordRecoveryOpen(false);
+
+    await supabase.auth.signOut();
+
+    setSession(null);
+
+    setAdminMessage("Mot de passe mis à jour. Connecte-toi avec le nouveau mot de passe.");
+
+  }, 1200);
+
+}
+
 useEffect(() => {
   loadPublishedContributions();
 }, []);
@@ -179,27 +298,6 @@ async function loadPublishedContributions() {
 
   setContributions([...initialContributions, ...publishedFromDb]);
 }
-async function signInAdmin(email, password) {
-  setAdminMessage("");
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    console.error(error);
-    setAdminMessage("Connexion impossible. Vérifie l’e-mail et le mot de passe.");
-    return;
-  }
-
-  setAdminMessage("Connexion administrateur réussie.");
-}
-
-async function signOutAdmin() {
-  await supabase.auth.signOut();
-  setAdminMessage("Déconnexion effectuée.");
-}
 
 async function loadPendingContributions() {
   const { data, error } = await supabase
@@ -217,18 +315,82 @@ async function loadPendingContributions() {
   const formatted = (data || []).map(formatContributionFromDb);
 
   setAdminContributions(formatted);
-  setPendingContributions(formatted.filter((item) => item.status === "pending"));
+  setPendingContributions(
+    formatted.filter((item) => item.status === "pending")
+  );
+} 
+async function signInAdmin(email, password) {
+  const now = Date.now();
+
+  if (adminLockUntil && now < adminLockUntil) {
+    const minutesLeft = Math.ceil((adminLockUntil - now) / 60000);
+    setAdminMessage(
+      `Trop de tentatives de connexion. Réessayez dans ${minutesLeft} minute${minutesLeft > 1 ? "s" : ""}.`
+    );
+    return;
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    const nextAttempts = adminLoginAttempts + 1;
+    setAdminLoginAttempts(nextAttempts);
+
+    if (nextAttempts >= 3) {
+      setAdminLockUntil(Date.now() + 15 * 60 * 1000);
+      setAdminMessage(
+        "Trop de tentatives incorrectes. L’accès administrateur est temporairement bloqué pendant 15 minutes."
+      );
+      return;
+    }
+
+    setAdminMessage(
+      `Connexion impossible. Tentative ${nextAttempts}/3 avant blocage temporaire.`
+    );
+    return;
+  }
+
+  setAdminLoginAttempts(0);
+  setAdminLockUntil(null);
+  setAdminMessage("Connexion administrateur réussie.");
 }
 
-  
+  async function signOutAdmin() {
+  const { error } = await supabase.auth.signOut();
 
-async function moderateContribution(id, newStatus) {
+  if (error) {
+    console.error(error);
+    setAdminMessage("La déconnexion administrateur n’a pas pu être effectuée.");
+    return;
+  }
+
+  setSession(null);
+  setAdminContributions([]);
+  setPendingContributions([]);
+  setAdminMessage("Déconnexion administrateur effectuée.");
+}
+
+async function moderateContribution(id, newStatus, reason = "", note = "") {
+  const updatePayload = {
+    status: newStatus,
+    updated_at: new Date().toISOString(),
+    moderated_at: new Date().toISOString(),
+  };
+
+  if (reason) {
+    updatePayload.moderation_reason = reason;
+  }
+
+  if (note) {
+    updatePayload.moderation_note = note;
+  }
+
   const { error } = await supabase
     .from("contributions")
-    .update({
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", id);
 
   if (error) {
@@ -237,18 +399,19 @@ async function moderateContribution(id, newStatus) {
     return;
   }
 
-await loadPendingContributions();
-await loadPublishedContributions();
+  await loadPendingContributions();
+  await loadPublishedContributions();
 
-const message =
-  newStatus === "published"
-    ? "Contribution publiée. Elle apparaît maintenant sur la carte publique."
-    : newStatus === "rejected"
-      ? "Contribution refusée."
-      : "Contribution archivée.";
+  const message =
+    newStatus === "published"
+      ? "Contribution publiée. Elle apparaît maintenant sur la carte publique."
+      : newStatus === "rejected"
+        ? `Contribution refusée${reason ? ` — motif : ${reason}` : ""}.`
+        : `Contribution archivée${reason ? ` — motif : ${reason}` : ""}.`;
 
-setAdminMessage(message);
+  setAdminMessage(message);
 }
+
 async function addContribution(form) {
   const layer =
     form.author === "Enfant accompagné"
@@ -354,6 +517,7 @@ return (
         pendingContributions={pendingContributions}
         adminContributions={adminContributions}
         adminMessage={adminMessage}
+        setAdminMessage={setAdminMessage}
         signInAdmin={signInAdmin}
         signOutAdmin={signOutAdmin}
         loadPendingContributions={loadPendingContributions}
@@ -362,19 +526,89 @@ return (
     )}
 
     {page === "protection" && <Protection />}
+    {passwordRecoveryOpen && (
+  <div className="modalOverlay" role="dialog" aria-modal="true">
+    <div className="rulesModal">
+      <div className="modalHeader">
+        <div>
+          <p className="eyebrow">Réinitialisation administrateur</p>
+          <h2>Choisir un nouveau mot de passe</h2>
+        </div>
+
+        <button
+          className="modalClose"
+          type="button"
+          onClick={() => setPasswordRecoveryOpen(false)}
+          aria-label="Fermer la fenêtre"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="rulesContent compactRules">
+        <section>
+          <h3>Nouveau mot de passe</h3>
+
+          <label className="field">
+            <span>Nouveau mot de passe</span>
+            <input
+              type="password"
+              value={newAdminPassword}
+              onChange={(event) => setNewAdminPassword(event.target.value)}
+              placeholder="8 caractères minimum"
+            />
+          </label>
+
+          <label className="field">
+            <span>Confirmer le mot de passe</span>
+            <input
+              type="password"
+              value={confirmAdminPassword}
+              onChange={(event) => setConfirmAdminPassword(event.target.value)}
+              placeholder="Répéter le nouveau mot de passe"
+            />
+          </label>
+        </section>
+
+        {passwordRecoveryMessage && (
+          <div className="legalNote">
+            {passwordRecoveryMessage}
+          </div>
+        )}
+      </div>
+
+      <div className="modalActions">
+        <button
+          className="secondary"
+          type="button"
+          onClick={() => setPasswordRecoveryOpen(false)}
+        >
+          Annuler
+        </button>
+
+        <button
+          className="primary"
+          type="button"
+          onClick={updateRecoveredPassword}
+        >
+          Mettre à jour le mot de passe
+        </button>
+      </div>
+    </div>
+  </div>
+)}
   </main>
 );
 }
 
 function Header({ page, setPage }) {       
   const links = [
-    ["accueil", "Accueil"],
-    ["carte", "Carte"],
-    ["ajout", "Ajouter"],
-    ["enfants", "Enfants"],
-    ["urbanistes", "Urbanistes"],
-    ["protection", "Protection"],
-  ];
+  ["accueil", "Accueil"],
+  ["carte", "Carte"],
+  ["ajout", "Ajouter"],
+  ["enfants", "Enfants"],
+  ["protection", "Protection"],
+];
 
   return (
     <header className="topbar">
@@ -392,6 +626,12 @@ function Header({ page, setPage }) {
           </button>
         ))}
       </nav>
+      <button
+  className={page === "urbanistes" ? "internalLink active" : "internalLink"}
+  onClick={() => setPage("urbanistes")}
+>
+  Espace urbanistes
+</button>
     </header>
   );
 }
@@ -417,8 +657,12 @@ function Home({ setPage, zoomQuartier }) {
             <button className="secondary" onClick={() => setPage("ajout")}>
               Ajouter un regard
             </button>
-            <button className="secondary" onClick={() => setPage("protection")}>
-              Lire les règles
+            <button className="secondary" 
+            type="button"
+            onClick={() => setRulesOpen(true)}
+             style={{ marginTop: "10px" }}
+>
+              Consulter les règles de contribution
             </button>
           </div>
 
@@ -688,7 +932,9 @@ function ContributionForm({ childMode = false, title, intro, types, defaultType,
     author,
     media: childMode ? "🎨 Dessin simulé" : "📷 Image simulée",
   });
-  const [acceptedRules, setAcceptedRules] = useState(false);
+
+const [acceptedRules, setAcceptedRules] = useState(false);
+const [rulesOpen, setRulesOpen] = useState(false);
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -781,13 +1027,109 @@ function ContributionForm({ childMode = false, title, intro, types, defaultType,
     <button
       className="secondary"
       type="button"
-      onClick={() => setPage("protection")}
+      onClick={() => setRulesOpen(true)}
       style={{ marginTop: "10px" }}
     >
-      Lire les règles de protection
+      Consulter les règles de contribution
     </button>
   </span>
 </label>
+
+{rulesOpen && (
+  <div className="modalOverlay" role="dialog" aria-modal="true">
+    <div className="rulesModal">
+      <div className="modalHeader">
+        <div>
+          <p className="eyebrow">Règles de contribution</p>
+          <h2>Contribuer en protégeant les personnes</h2>
+        </div>
+
+        <button
+          className="modalClose"
+          type="button"
+          onClick={() => setRulesOpen(false)}
+          aria-label="Fermer la fenêtre"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="rulesContent compactRules">
+  <section>
+    <h3>Contribution attendue</h3>
+    <p>
+      Vous pouvez partager un lieu aimé, un souvenir, une idée d’aménagement,
+      un ressenti ou une observation sur un espace public de Lomme.
+    </p>
+  </section>
+
+  <section>
+    <h3>Protection des personnes</h3>
+    <p>
+      Merci de ne pas transmettre de nom, prénom, adresse précise, numéro de
+      téléphone, plaque d’immatriculation, visage reconnaissable ou information
+      permettant d’identifier une personne directement ou indirectement.
+    </p>
+  </section>
+
+  <section>
+    <h3>Photos et droit à l’image</h3>
+    <p>
+      Privilégiez les photos de lieux, de rues, d’ambiances ou de détails
+      urbains. Les photos de personnes reconnaissables, et particulièrement
+      d’enfants, seront écartées lors de la modération.
+    </p>
+  </section>
+
+  <section>
+    <h3>Propos sensibles</h3>
+    <p>
+      Les accusations nominatives, insinuations visant une personne identifiable,
+      propos injurieux ou discriminatoires ne sont pas publiés. Cette règle
+      protège les habitants, les agents, les associations et les contributeurs.
+    </p>
+  </section>
+
+  {childMode && (
+    <section>
+      <h3>Contribution d’enfant</h3>
+      <p>
+        Les dessins, phrases et poèmes sont privilégiés. L’enfant reste anonyme
+        et la contribution doit être accompagnée par un adulte.
+      </p>
+    </section>
+  )}
+
+  <div className="legalNote">
+    Rappel : les contributions sont relues avant publication afin de respecter
+    le RGPD, le droit à l’image, la vie privée et les règles relatives aux propos
+    diffamatoires ou discriminatoires.
+  </div>
+</div>
+
+      <div className="modalActions">
+        <button
+          className="secondary"
+          type="button"
+          onClick={() => setRulesOpen(false)}
+        >
+          Fermer
+        </button>
+
+        <button
+          className="primary"
+          type="button"
+          onClick={() => {
+            setAcceptedRules(true);
+            setRulesOpen(false);
+          }}
+        >
+          J’ai compris et j’accepte
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
 <button className="primary full" type="submit" disabled={!acceptedRules}>
   Envoyer la contribution
@@ -807,6 +1149,7 @@ function Dashboard({
   pendingContributions,
   adminContributions,
   adminMessage,
+  setAdminMessage,
   signInAdmin,
   signOutAdmin,
   loadPendingContributions,
@@ -816,6 +1159,8 @@ function Dashboard({
   const [adminPassword, setAdminPassword] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [activeStatus, setActiveStatus] = useState("pending");
+  const [moderationDecision, setModerationDecision] = useState(null);
+  
 
   const statusTabs = [
     { key: "pending", label: "En attente", helper: "À relire avant publication" },
@@ -902,6 +1247,31 @@ const diagnosticSummary =
     await signInAdmin(adminEmail, adminPassword);
     setLoginLoading(false);
   }
+
+ async function handlePasswordReset() {
+  const email = adminEmail.trim();
+
+  if (!email) {
+    setAdminMessage("Indique d’abord l’e-mail administrateur à réinitialiser.");
+    return;
+  }
+
+  setAdminMessage("Demande de réinitialisation en cours...");
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+
+  if (error) {
+    console.error(error);
+    setAdminMessage(`Erreur Supabase : ${error.message}`);
+    return;
+  }
+
+  setAdminMessage(
+    "Si ce compte existe, un lien de réinitialisation a été envoyé par e-mail."
+  );
+}
 
   function exportContributionsCsv(rows, label = "diagnostic") {
   if (!rows || rows.length === 0) {
@@ -1086,6 +1456,36 @@ const diagnosticSummary =
             <button className="primary full" type="submit" disabled={loginLoading}>
               {loginLoading ? "Connexion..." : "Se connecter comme administrateur"}
             </button>
+
+            <button
+  className="secondary full"
+  type="button"
+  onClick={async () => {
+    const email = adminEmail.trim();
+
+    if (!email) {
+      setAdminMessage("Indique d’abord l’e-mail administrateur à réinitialiser.");
+      return;
+    }
+
+    setAdminMessage("Demande de réinitialisation en cours...");
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+
+    if (error) {
+      console.error(error);
+    }
+
+    setAdminMessage(
+      "Si ce compte existe, un lien de réinitialisation a été envoyé par e-mail."
+    );
+  }}
+>
+  Mot de passe oublié ?
+</button>
+
           </form>
         ) : (
           <>
@@ -1154,7 +1554,7 @@ const diagnosticSummary =
 {item.status !== "rejected" && item.status !== "published" && (
   <button
     className="secondary"
-    onClick={() => moderateContribution(item.id, "rejected")}
+    onClick={() => openModerationModal(item, "rejected")}
   >
     Refuser
   </button>
@@ -1163,7 +1563,7 @@ const diagnosticSummary =
 {item.status === "published" && (
   <button
     className="secondary"
-    onClick={() => moderateContribution(item.id, "archived")}
+    onClick={() => openModerationModal(item, "archived")}
   >
     Retirer de la carte / Archiver
   </button>
@@ -1172,7 +1572,7 @@ const diagnosticSummary =
 {item.status !== "archived" && item.status !== "published" && (
   <button
     className="secondary"
-    onClick={() => moderateContribution(item.id, "archived")}
+    onClick={() => openModerationModal(item, "archived")}
   >
     Archiver
   </button>
@@ -1193,6 +1593,90 @@ const diagnosticSummary =
           </>
         )}
       </section>
+
+{moderationDecision && (
+  <div className="modalOverlay" role="dialog" aria-modal="true">
+    <div className="rulesModal">
+      <div className="modalHeader">
+        <div>
+          <p className="eyebrow">Décision de modération</p>
+          <h2>
+            {moderationDecision.status === "rejected"
+              ? "Motif de refus"
+              : "Motif d’archivage"}
+          </h2>
+        </div>
+
+        <button
+          className="modalClose"
+          type="button"
+          onClick={() => setModerationDecision(null)}
+          aria-label="Fermer la fenêtre"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="rulesContent compactRules">
+        <section>
+          <h3>Contribution concernée</h3>
+          <p>{moderationDecision.title}</p>
+        </section>
+
+        <section>
+          <label className="field">
+            <span>Motif obligatoire</span>
+            <select
+              value={moderationReason}
+              onChange={(event) => setModerationReason(event.target.value)}
+            >
+              <option value="">Sélectionner un motif</option>
+              {moderationReasons.map((reason) => (
+                <option key={reason} value={reason}>
+                  {reason}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Note interne facultative</span>
+            <textarea
+              rows="3"
+              value={moderationNote}
+              onChange={(event) => setModerationNote(event.target.value)}
+              placeholder="Précision utile pour l’équipe de modération."
+            />
+          </label>
+        </section>
+
+        <div className="legalNote">
+          Cette décision reste interne à l’espace Urbanistes. Elle permet de
+          conserver une trace claire du refus ou de l’archivage.
+        </div>
+      </div>
+
+      <div className="modalActions">
+        <button
+          className="secondary"
+          type="button"
+          onClick={() => setModerationDecision(null)}
+        >
+          Annuler
+        </button>
+
+        <button
+          className="primary"
+          type="button"
+          onClick={confirmModerationDecision}
+          disabled={!moderationReason}
+        >
+          Confirmer la décision
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       <div className="toolsPanel urbanTools">
         <Select
