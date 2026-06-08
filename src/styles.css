@@ -1090,3 +1090,124 @@ h2 { font-family: Georgia, "Times New Roman", serif; margin-top: 0; }
   }
 }
 
+.accessPanel {
+  margin-top: 22px;
+  padding: 26px;
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  background: rgba(255, 253, 248, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.accessHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.accessHeader h2 {
+  margin-bottom: 8px;
+}
+
+.accessHeader p {
+  max-width: 780px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.accessBadge {
+  white-space: nowrap;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 850;
+}
+
+.accessMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.accessMetrics article {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fffaf2;
+}
+
+.accessMetrics strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.accessMetrics span {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.accessTableWrap {
+  overflow-x: auto;
+}
+
+.accessTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: white;
+}
+
+.accessTable th,
+.accessTable td {
+  padding: 14px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.accessTable th {
+  background: var(--soft);
+  color: var(--accent-dark);
+  font-weight: 900;
+}
+
+.accessTable tr:last-child td {
+  border-bottom: none;
+}
+
+.statusPill {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #edf3e8;
+  color: var(--accent-dark);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.accessNote {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 860px) {
+  .accessHeader {
+    display: grid;
+  }
+
+  .accessMetrics {
+    grid-template-columns: 1fr;
+  }
+}
