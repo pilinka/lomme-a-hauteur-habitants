@@ -1211,3 +1211,10 @@ h2 { font-family: Georgia, "Times New Roman", serif; margin-top: 0; }
     grid-template-columns: 1fr;
   }
 }
+
+.tableSubtext {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}

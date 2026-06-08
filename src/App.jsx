@@ -1163,6 +1163,7 @@ function Dashboard({
   const [activeStatus, setActiveStatus] = useState("pending");
   const [moderationDecision, setModerationDecision] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [accessProfiles, setAccessProfiles] = useState([]);
 
   useEffect(() => {
   if (!session?.user?.id) {
@@ -1189,9 +1190,44 @@ function Dashboard({
   loadUserProfile();
 }, [session]);
 
-  const canManageAccess =
-  userProfile?.status === "active" &&
-  ["gestionnaire", "admin"].includes(userProfile?.role);
+  const activeRole = userProfile?.status === "active" ? userProfile.role : null;
+
+const canManageAccess = ["gestionnaire", "admin"].includes(activeRole);
+
+const canModerate = ["gestionnaire", "admin", "moderateur"].includes(activeRole);
+
+const canExport = ["gestionnaire", "admin", "urbaniste"].includes(activeRole);
+
+const canViewDiagnostic = [
+  "gestionnaire",
+  "admin",
+  "urbaniste",
+  "moderateur",
+  "lecteur_interne",
+].includes(activeRole);
+
+  useEffect(() => {
+  if (!canManageAccess) {
+    setAccessProfiles([]);
+    return;
+  }
+
+  async function loadAccessProfiles() {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email, role, status, created_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setAccessProfiles(data || []);
+  }
+
+  loadAccessProfiles();
+}, [canManageAccess]);
 
   const statusTabs = [
     { key: "pending", label: "En attente", helper: "À relire avant publication" },
@@ -1626,7 +1662,7 @@ if (!session) {
               ))}
             </div>
             {canManageAccess ? (
-  <AuthorizationsPanel />
+  <AuthorizationsPanel profiles={accessProfiles} />
 ) : (
   <div className="notice compact">
     La gestion des accès internes est réservée au gestionnaire ou à l’administrateur du projet.
@@ -1664,7 +1700,8 @@ if (!session) {
                       </p>
 
                       <div className="toolsPanel urbanTools">
-                        {item.status !== "published" && (
+                        
+                        {canModerate && item.status !== "published" && (
   <button
     className="primary"
     onClick={() => moderateContribution(item.id, "published")}
@@ -1673,7 +1710,7 @@ if (!session) {
   </button>
 )}
 
-{item.status !== "rejected" && item.status !== "published" && (
+{canModerate && item.status !== "rejected" && item.status !== "published" && (
   <button
     className="secondary"
     onClick={() => openModerationModal(item, "rejected")}
@@ -1682,7 +1719,7 @@ if (!session) {
   </button>
 )}
 
-{item.status === "published" && (
+{canModerate && item.status === "published" && (
   <button
     className="secondary"
     onClick={() => openModerationModal(item, "archived")}
@@ -1691,7 +1728,7 @@ if (!session) {
   </button>
 )}
 
-{item.status !== "archived" && item.status !== "published" && (
+{canModerate && item.status !== "archived" && item.status !== "published" && (
   <button
     className="secondary"
     onClick={() => openModerationModal(item, "archived")}
@@ -1801,58 +1838,43 @@ if (!session) {
 )}
 
       <div className="toolsPanel urbanTools">
-        <Select
-          label="Quartier"
-          value={filters.quartier}
-          options={["Tous", ...quartiers]}
-          onChange={(value) => setFilters((f) => ({ ...f, quartier: value }))}
-        />
-        <Select
-          label="Ressenti"
-          value={filters.emotion}
-          options={["Tous", ...emotions]}
-          onChange={(value) => setFilters((f) => ({ ...f, emotion: value }))}
-        />
+  <Select
+    label="Quartier"
+    value={filters.quartier}
+    options={["Tous", ...quartiers]}
+    onChange={(value) => setFilters((f) => ({ ...f, quartier: value }))}
+  />
 
-        <button
-  className="secondary"
-  onClick={() => exportContributionsCsv(activeAdminItems, activeStatus)}
->
-  Exporter CSV de l’onglet
-</button>
+  <Select
+    label="Ressenti"
+    value={filters.emotion}
+    options={["Tous", ...emotions]}
+    onChange={(value) => setFilters((f) => ({ ...f, emotion: value }))}
+  />
 
-<button
-  className="secondary"
-  onClick={() =>
-    exportContributionsCsv(
-      safeAdminContributions.filter((item) => item.status === "published"),
-      "publiees"
-    )
-  }
->
-  Exporter CSV publiées
-</button>
+  {canExport && (
+    <>
+      <button
+        className="secondary"
+        onClick={() => exportContributionsCsv(activeAdminItems, activeStatus)}
+      >
+        Exporter CSV de l’onglet
+      </button>
 
-        <button
-  className="secondary"
-  onClick={() => exportContributionsCsv(activeAdminItems, activeStatus)}
->
-  Exporter CSV de l’onglet
-</button>
-
-<button
-  className="secondary"
-  onClick={() =>
-    exportContributionsCsv(
-      safeAdminContributions.filter((item) => item.status === "published"),
-      "publiees"
-    )
-  }
->
-  Exporter CSV publiées
-</button>
-      </div>
-
+      <button
+        className="secondary"
+        onClick={() =>
+          exportContributionsCsv(
+            safeAdminContributions.filter((item) => item.status === "published"),
+            "publiees"
+          )
+        }
+      >
+        Exporter CSV publiées
+      </button>
+    </>
+  )}
+</div>
 
 <section className="panel diagnosticPreviewPanel">
   <div className="diagnosticPreviewHeader">
@@ -1971,35 +1993,7 @@ if (!session) {
   );
 }
 
-function AuthorizationsPanel() {
-  const accessRows = [
-    {
-      role: "Gestionnaire des accès",
-      permissions: "Créer les comptes, attribuer les rôles, désactiver les accès",
-      status: "Rôle réservé",
-    },
-    {
-      role: "Administrateur",
-      permissions: "Paramétrage, modération, exports et suivi général",
-      status: "Accès complet",
-    },
-    {
-      role: "Urbaniste",
-      permissions: "Lecture des contributions, diagnostic, exports autorisés",
-      status: "Accès métier",
-    },
-    {
-      role: "Modérateur",
-      permissions: "Relecture, publication, refus et archivage",
-      status: "Accès modération",
-    },
-    {
-      role: "Lecteur interne",
-      permissions: "Consultation des contenus validés et des synthèses",
-      status: "Accès limité",
-    },
-  ];
-
+function AuthorizationsPanel({ profiles = [] }) {
   return (
     <section className="accessPanel">
       <div className="accessHeader">
@@ -2007,9 +2001,9 @@ function AuthorizationsPanel() {
           <p className="eyebrow">Accès interne</p>
           <h2>Gestion des accès internes</h2>
           <p>
-            Cette rubrique est destinée au gestionnaire des accès. Elle prépare
-            la gestion des comptes autorisés à utiliser l’espace urbanistes :
-            identité, adresse e-mail, rôle, niveau d’accès et statut du compte.
+            Cette rubrique est destinée au gestionnaire des accès. Elle permet de
+            suivre les comptes autorisés à utiliser l’espace urbanistes : identité,
+            adresse e-mail, rôle, niveau d’accès et statut du compte.
           </p>
         </div>
 
@@ -2037,29 +2031,44 @@ function AuthorizationsPanel() {
         <table className="accessTable">
           <thead>
             <tr>
-              <th>Profil</th>
-              <th>Droits prévus</th>
+              <th>Utilisateur</th>
+              <th>Rôle</th>
               <th>Statut</th>
             </tr>
           </thead>
 
           <tbody>
-            {accessRows.map((row) => (
-              <tr key={row.role}>
-                <td>{row.role}</td>
-                <td>{row.permissions}</td>
-                <td>
-                  <span className="statusPill">{row.status}</span>
-                </td>
+            {profiles.length === 0 ? (
+              <tr>
+                <td colSpan={3}>Aucun profil interne à afficher pour le moment.</td>
               </tr>
-            ))}
+            ) : (
+              profiles.map((profile) => {
+                const fullName =
+                  `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
+                  "Nom à compléter";
+
+                return (
+                  <tr key={profile.id}>
+                    <td>
+                      <strong>{fullName}</strong>
+                      <br />
+                      <span className="tableSubtext">{profile.email}</span>
+                    </td>
+                    <td>{profile.role}</td>
+                    <td>
+                      <span className="statusPill">{profile.status}</span>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
 
       <p className="accessNote">
-        Cette gestion des accès sera réservée au gestionnaire ou à
-        l’administrateur du projet lorsque les rôles Supabase seront activés.
+        Cette gestion des accès est réservée au gestionnaire ou à l’administrateur du projet.
       </p>
     </section>
   );
