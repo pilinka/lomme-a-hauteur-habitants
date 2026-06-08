@@ -1583,12 +1583,12 @@ if (!session) {
         {!session ? (
           <form className="cardForm" onSubmit={handleAdminLogin}>
             <label className="field">
-              <span>E-mail administrateur</span>
+              <span>E-mail professionnel</span>
               <input
                 type="email"
                 value={adminEmail}
                 onChange={(event) => setAdminEmail(event.target.value)}
-                placeholder="votre adresse admin"
+                placeholder="adresse e-mail autorisée"
               />
             </label>
 
@@ -1605,7 +1605,7 @@ if (!session) {
             {adminMessage && <div className="notice compact">{adminMessage}</div>}
 
             <button className="primary full" type="submit" disabled={loginLoading}>
-              {loginLoading ? "Connexion..." : "Se connecter comme administrateur"}
+            {loginLoading ? "Connexion..." : "Se connecter"}
             </button>
 
             <button
@@ -1615,7 +1615,7 @@ if (!session) {
     const email = adminEmail.trim();
 
     if (!email) {
-      setAdminMessage("Indique d’abord l’e-mail administrateur à réinitialiser.");
+      setAdminMessage("Indique d’abord l’e-mail du compte à réinitialiser.");
       return;
     }
 
