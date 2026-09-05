@@ -1,5 +1,12 @@
-node_modules
-dist
+node_modules/
+dist/
+coverage/
+coverage-qa/
+playwright-report/
+test-results/
+docs/v3/reference-assets/
 .env
-.env.local
+.env.*
+!.env.example
+*.local
 .DS_Store

@@ -1,0 +1,40 @@
+.lead {
+  max-width: 58ch;
+  font-size: clamp(1.15rem, 2.5vw, 1.5rem);
+}
+
+.intent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-3);
+  margin-block: var(--space-5);
+}
+
+.intent-grid article,
+.map-foundation {
+  padding: var(--space-4);
+  background: var(--color-surface-raised);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-soft);
+}
+
+.view-switcher {
+  margin-block: var(--space-4);
+  font-weight: 700;
+}
+
+.form-guidance {
+  max-width: 48rem;
+  padding: var(--space-3);
+  border-inline-start: 0.3rem solid var(--color-accent);
+  background: #ffffff;
+}
+
+.map-foundation {
+  min-height: 16rem;
+  background-image:
+    linear-gradient(135deg, rgb(49 91 80 / 8%) 25%, transparent 25%),
+    linear-gradient(225deg, rgb(49 91 80 / 8%) 25%, transparent 25%);
+  background-size: 2rem 2rem;
+}

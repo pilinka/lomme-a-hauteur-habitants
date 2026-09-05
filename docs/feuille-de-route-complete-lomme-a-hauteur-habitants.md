@@ -1,5 +1,13 @@
 # Feuille de route complète — Lomme à hauteur d’habitants
 
+> **DOCUMENT HISTORIQUE V3 — NON NORMATIF — NE DÉCRIT PAS LE LOT 1 V4**
+>
+> Ce document conserve les intentions et l’état du prototype V3 à titre documentaire. Les cases
+> cochées, les URLs, les branchements Supabase, les comptes, les données et les déploiements qu’il
+> mentionne ne constituent ni des garanties actuelles ni une spécification de la V4. Consultez
+> [`README.md`](../README.md), [`docs/architecture.md`](architecture.md) et les ADR pour le socle
+> V4.
+
 Document de suivi unique pour l’application **Lomme à hauteur d’habitants**.
 
 Cette feuille de route rassemble les choix techniques, les règles de protection, les priorités de développement et les évolutions futures de l’application.

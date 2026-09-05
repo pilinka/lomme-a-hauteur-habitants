@@ -1,0 +1,14 @@
+.console-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-3);
+  margin-block: var(--space-5);
+}
+
+.console-grid article {
+  padding: var(--space-4);
+  background: var(--color-surface-raised);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-soft);
+}

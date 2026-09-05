@@ -1,20 +1,58 @@
 {
-  "name": "a-hauteur-habitants-lomme-v3",
-  "version": "3.0.0",
+  "name": "a-hauteur-habitants-v4",
+  "version": "4.0.0-lot.1",
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+  "packageManager": "npm@11.9.0",
+  "engines": {
+    "node": "24.19.0",
+    "npm": "11.9.0"
   },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.106.2",
-    "@vitejs/plugin-react": "latest",
-    "leaflet": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "react-leaflet": "latest",
-    "vite": "latest"
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:public": "npm run dev --workspace @ahh/public-web",
+    "dev:professional": "npm run dev --workspace @ahh/professional-console",
+    "build": "npm run build --workspaces --if-present",
+    "build:public": "npm run build --workspace @ahh/public-web",
+    "build:professional": "npm run build --workspace @ahh/professional-console",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:architecture": "node scripts/check-architecture.mjs",
+    "test:contrast": "node scripts/check-contrast.mjs",
+    "test:fixtures": "node scripts/check-fixtures.mjs",
+    "security:secrets": "node scripts/check-secrets.mjs"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@eslint/js": "9.39.5",
+    "@playwright/test": "1.63.0",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitest/coverage-v8": "5.0.0",
+    "axe-core": "4.13.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.6",
+    "globals": "17.12.0",
+    "jsdom": "30.0.1",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.69.0",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
   }
 }

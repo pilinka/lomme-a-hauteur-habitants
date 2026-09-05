@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+playwright-report
+test-results
+docs/v3/reference-assets
+docs/feuille-de-route-complete-lomme-a-hauteur-habitants.md
