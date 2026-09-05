@@ -89,6 +89,41 @@ test.describe('fondations publiques', () => {
     await expect(page.locator('#contenu-principal')).toBeFocused();
   });
 
+  test('la navigation et le formulaire publics sont utilisables au clavier', async ({ page }) => {
+    const observations = observeRuntime(page);
+    await page.goto('http://127.0.0.1:4173/');
+
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Aller au contenu principal' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Accueil' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Explorer' })).toBeFocused();
+    await page.keyboard.press('Tab');
+    const contributeLink = page.getByRole('link', { name: 'Contribuer' });
+    await expect(contributeLink).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(page).toHaveURL(/\/contribuer$/);
+    await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
+
+    await page.keyboard.press('Tab');
+    const title = page.getByRole('textbox', { name: /Titre de la proposition/ });
+    await expect(title).toBeFocused();
+    await page.keyboard.type('Scénario clavier synthétique');
+    await page.keyboard.press('Tab');
+    const content = page.getByRole('textbox', { name: /Votre contribution/ });
+    await expect(content).toBeFocused();
+    await page.keyboard.type('Texte synthétique saisi uniquement au clavier.');
+    await page.keyboard.press('Tab');
+    const submit = page.getByRole('button', { name: 'Vérifier le parcours' });
+    await expect(submit).toBeFocused();
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByRole('status')).toContainText('Aucune donnée n’a été envoyée');
+    await expectCleanRuntime(page, observations);
+  });
+
   test('le retour du navigateur conserve une navigation fonctionnelle', async ({ page }) => {
     await page.goto('http://127.0.0.1:4173/');
     await page.getByRole('link', { name: 'Commencer à explorer' }).click();
