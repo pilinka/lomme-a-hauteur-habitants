@@ -13,6 +13,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  postgresql-rls:
+    name: Migrations PostgreSQL et matrice RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - name: Extraire le dépôt
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Préparer les primitives Auth minimales
+        run: psql --set ON_ERROR_STOP=1 --file supabase/tests/bootstrap.sql
+      - name: Rejouer les migrations sur une base propre
+        run: |
+          set -euo pipefail
+          for migration in supabase/migrations/*.sql; do
+            psql --set ON_ERROR_STOP=1 --file "$migration"
+          done
+      - name: Exécuter la matrice RLS transactionnelle
+        run: psql --set ON_ERROR_STOP=1 --file supabase/tests/lot2_rls.sql
+      - name: Vérifier le rollback des données synthétiques
+        run: |
+          test "$(psql --tuples-only --no-align --command \
+            'select count(*) from auth.users')" = "0"
+          test "$(psql --tuples-only --no-align --command \
+            'select count(*) from core.organizations')" = "0"
+
   quality:
     name: Qualité, contrats et sécurité
     runs-on: ubuntu-latest

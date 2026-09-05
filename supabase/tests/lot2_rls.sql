@@ -55,9 +55,9 @@ insert into core.membership_roles (organization_id, membership_id, role_key) val
 insert into core.membership_territory_scopes (organization_id, membership_id, territory_id)
 values ('10000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000006', '20000000-0000-4000-8000-000000000001');
 
-insert into audit.events (organization_id, actor_id, action, target_type, target_id, outcome) values
-  ('10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'synthetic.read', 'organization', '10000000-0000-4000-8000-000000000001', 'allowed'),
-  ('10000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'synthetic.read', 'organization', '10000000-0000-4000-8000-000000000002', 'allowed');
+insert into audit.events (organization_id, actor_id, action, target_type, outcome) values
+  ('10000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', 'synthetic.read', 'organization', 'allowed'),
+  ('10000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002', 'synthetic.read', 'organization', 'allowed');
 
 -- Configuration structurelle et absence d'exposition des référentiels.
 select pg_temp.assert_true(
@@ -115,12 +115,46 @@ select pg_temp.assert_true(
   'anon ne doit pas pouvoir exécuter has_permission'
 );
 
+select pg_temp.assert_true(
+  (select prosecdef
+     and prorettype = 'boolean'::regtype
+     and proconfig @> array['search_path=pg_catalog, core, reference, auth']
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'private' and p.proname = 'has_permission'),
+  'has_permission doit rester SECURITY DEFINER booléenne avec search_path fermé'
+);
+
+select pg_temp.assert_true(
+  (select bool_and(
+     not has_function_privilege('anon', p.oid, 'EXECUTE')
+     and not has_function_privilege('authenticated', p.oid, 'EXECUTE')
+   )
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'private' and p.proname <> 'has_permission'),
+  'les fonctions de trigger privées ne doivent pas être exécutables par PUBLIC'
+);
+
 set local role anon;
 do $$
 begin
   begin
     perform count(*) from core.organizations;
     raise exception 'LOT2 ASSERTION FAILED: anon a lu core.organizations';
+  exception
+      when insufficient_privilege then null;
+  end;
+
+  begin
+    insert into core.membership_roles (organization_id, membership_id, role_key)
+    values ('10000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000003', 'organization_admin');
+    raise exception 'LOT2 ASSERTION FAILED: anon s’est attribué un rôle';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
+    insert into core.organizations (slug, name) values ('anon-org', 'Anon org');
+    raise exception 'LOT2 ASSERTION FAILED: anon a créé une organisation';
   exception
     when insufficient_privilege then null;
   end;
@@ -139,8 +173,73 @@ select pg_temp.assert_true((select count(*) = 5 from api.my_memberships), 'admin
 insert into core.territories (organization_id, slug, name, status)
 values ('10000000-0000-4000-8000-000000000001', 'a-created-by-admin', 'A Created', 'active');
 select pg_temp.assert_true((select count(*) = 3 from api.my_territories), 'admin A doit pouvoir créer un territoire A');
-delete from core.territories where slug = 'a-created-by-admin';
-select pg_temp.assert_true((select count(*) = 2 from api.my_territories), 'admin A doit pouvoir supprimer le territoire de test');
+
+do $$
+begin
+  begin
+    insert into core.territories (organization_id, slug, name, status)
+    values ('10000000-0000-4000-8000-000000000002', 'forbidden-from-a', 'Forbidden from A', 'active');
+    raise exception 'LOT2 ASSERTION FAILED: admin A a créé un territoire B';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
+    insert into core.membership_roles (organization_id, membership_id, role_key)
+    values ('10000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000002', 'organization_admin');
+    raise exception 'LOT2 ASSERTION FAILED: admin A a attribué un rôle dans B';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  begin
+    insert into core.membership_roles (organization_id, membership_id, role_key)
+    values ('10000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000002', 'reader');
+    raise exception 'LOT2 ASSERTION FAILED: admin A a lié une membership B à A';
+  exception
+    when foreign_key_violation then null;
+  end;
+
+  begin
+    insert into core.membership_territory_scopes (organization_id, membership_id, territory_id)
+    values ('10000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000006', '20000000-0000-4000-8000-000000000003');
+    raise exception 'LOT2 ASSERTION FAILED: admin A a lié un territoire B à A';
+  exception
+    when foreign_key_violation then null;
+  end;
+
+  begin
+    insert into core.membership_roles (
+      organization_id, membership_id, role_key, created_by
+    ) values (
+      '10000000-0000-4000-8000-000000000001',
+      '40000000-0000-4000-8000-000000000003',
+      'agent',
+      '30000000-0000-4000-8000-000000000002'
+    );
+    raise exception 'LOT2 ASSERTION FAILED: métadonnée d’attribution falsifiable';
+  exception
+      when insufficient_privilege then null;
+  end;
+
+  begin
+    update core.memberships set scope_mode = 'organization'
+    where id = '40000000-0000-4000-8000-000000000006';
+    raise exception 'LOT2 ASSERTION FAILED: scope territorial perdu sans suppression explicite';
+  exception
+    when check_violation then null;
+  end;
+
+  begin
+    execute $sql$update core.territories
+      set organization_id = '10000000-0000-4000-8000-000000000002'
+      where id = '20000000-0000-4000-8000-000000000001'$sql$;
+    raise exception 'LOT2 ASSERTION FAILED: organization_id modifiable par authenticated';
+  exception
+    when insufficient_privilege then null;
+  end;
+end;
+$$;
 
 do $$
 declare affected integer;
@@ -149,6 +248,11 @@ begin
   where id = '10000000-0000-4000-8000-000000000002';
   get diagnostics affected = row_count;
   perform pg_temp.assert_true(affected = 0, 'admin A ne doit pas modifier B');
+
+  update core.memberships set status = 'suspended'
+  where id = '40000000-0000-4000-8000-000000000002';
+  get diagnostics affected = row_count;
+  perform pg_temp.assert_true(affected = 0, 'admin A ne doit pas modifier une membership B');
 end;
 $$;
 
@@ -173,19 +277,34 @@ select pg_temp.assert_true((select count(*) = 1 from api.my_organizations), 'lec
 select pg_temp.assert_true((select bool_and(id = '10000000-0000-4000-8000-000000000002') from api.my_organizations), 'lecteur B ne doit voir que B');
 select pg_temp.assert_true((select count(*) = 1 from api.my_territories), 'lecteur B ne doit voir que B One');
 reset role;
+select pg_temp.assert_true(
+  not private.has_permission('10000000-0000-4000-8000-000000000002', 'organization.manage'),
+  'un lecteur B ne doit pas recevoir organization.manage'
+);
 
 -- Membership inactif : aucun droit malgré un utilisateur Auth valide.
 select set_config('request.jwt.claim.sub', '30000000-0000-4000-8000-000000000003', true);
 set local role authenticated;
 select pg_temp.assert_true((select count(*) = 0 from api.my_organizations), 'membership inactif ne doit rien voir');
 select pg_temp.assert_true((select count(*) = 0 from api.my_territories), 'membership inactif ne doit voir aucun territoire');
+do $$
+begin
+  begin
+    insert into core.territories (organization_id, slug, name, status)
+    values ('10000000-0000-4000-8000-000000000001', 'inactive-write', 'Inactive write', 'active');
+    raise exception 'LOT2 ASSERTION FAILED: membership inactive autorisée en écriture';
+  exception
+    when insufficient_privilege then null;
+  end;
+end;
+$$;
 reset role;
 
 -- Double appartenance explicite : A et B, sans élargissement implicite.
 select set_config('request.jwt.claim.sub', '30000000-0000-4000-8000-000000000004', true);
 set local role authenticated;
 select pg_temp.assert_true((select count(*) = 2 from api.my_organizations), 'double appartenance doit exposer A et B');
-select pg_temp.assert_true((select count(*) = 3 from api.my_territories), 'double appartenance doit exposer les trois territoires configurés');
+select pg_temp.assert_true((select count(*) = 4 from api.my_territories), 'double appartenance doit exposer les quatre territoires de la transaction');
 reset role;
 
 -- Portée territoriale : A One seulement, sans organisation ni A Two/B One.
@@ -237,6 +356,33 @@ begin
     where id = '20000000-0000-4000-8000-000000000001';
     raise exception 'LOT2 ASSERTION FAILED: organization_id territoire modifiable';
   exception
+      when check_violation then null;
+  end;
+
+  begin
+    update core.memberships
+    set organization_id = '10000000-0000-4000-8000-000000000002'
+    where id = '40000000-0000-4000-8000-000000000001';
+    raise exception 'LOT2 ASSERTION FAILED: organization_id membership modifiable';
+  exception
+    when check_violation then null;
+  end;
+
+  begin
+    update core.membership_roles
+    set organization_id = '10000000-0000-4000-8000-000000000002'
+    where membership_id = '40000000-0000-4000-8000-000000000001';
+    raise exception 'LOT2 ASSERTION FAILED: organization_id rôle modifiable';
+  exception
+    when check_violation then null;
+  end;
+
+  begin
+    update core.membership_territory_scopes
+    set organization_id = '10000000-0000-4000-8000-000000000002'
+    where membership_id = '40000000-0000-4000-8000-000000000006';
+    raise exception 'LOT2 ASSERTION FAILED: organization_id scope modifiable';
+  exception
     when check_violation then null;
   end;
 
@@ -254,7 +400,10 @@ $$;
 select pg_temp.assert_true(
   not has_column_privilege('authenticated', 'core.organizations', 'id', 'UPDATE')
   and not has_column_privilege('authenticated', 'core.territories', 'id', 'INSERT')
-  and not has_column_privilege('authenticated', 'core.territories', 'organization_id', 'UPDATE'),
+  and not has_column_privilege('authenticated', 'core.territories', 'organization_id', 'UPDATE')
+  and not has_table_privilege('authenticated', 'core.territories', 'DELETE')
+  and not has_column_privilege('authenticated', 'core.membership_roles', 'created_by', 'INSERT')
+  and not has_column_privilege('authenticated', 'core.membership_territory_scopes', 'created_at', 'INSERT'),
   'les colonnes d’identité et de tenant doivent rester hors privilèges client'
 );
 

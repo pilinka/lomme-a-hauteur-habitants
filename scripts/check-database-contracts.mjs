@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..');
 const migrationRoot = join(root, 'supabase/migrations');
 const testPath = join(root, 'supabase/tests/lot2_rls.sql');
+const bootstrapPath = join(root, 'supabase/tests/bootstrap.sql');
 const violations = [];
 
 const migrationFiles = readdirSync(migrationRoot)
@@ -76,6 +77,10 @@ if (!existsSync(testPath)) {
       violations.push(`cas RLS absent : ${marker}`);
     }
   }
+}
+
+if (!existsSync(bootstrapPath)) {
+  violations.push('bootstrap PostgreSQL propre absent');
 }
 
 if (violations.length) {

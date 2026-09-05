@@ -42,7 +42,6 @@ export interface ApiAuditEventRow {
   actor_id: string | null;
   action: string;
   target_type: string;
-  target_id: string | null;
   outcome: string;
   created_at: string;
 }
