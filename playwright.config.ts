@@ -12,12 +12,12 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'npm run preview --workspace @ahh/public-web -- --port 4173',
+      command: 'npm run preview --workspace @ahh/public-web -- --host 127.0.0.1 --port 4173',
       port: 4173,
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'npm run preview --workspace @ahh/professional-console -- --port 4174',
+      command: 'npm run preview --workspace @ahh/professional-console -- --host 127.0.0.1 --port 4174',
       port: 4174,
       reuseExistingServer: !process.env.CI,
     },
