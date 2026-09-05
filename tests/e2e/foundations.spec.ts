@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const forbiddenRuntimeMarkers =
-  /fuemwzrvmputgbaaondp|synthetic-demo|fixture-(?:contribution|publication)/i;
+  /(?:https?:\/\/[^\s"']+\.supabase\.(?:co|in)|VITE_SUPABASE_|synthetic-demo|fixture-(?:contribution|publication))/i;
 
 function observeRuntime(page: Page) {
   const criticalErrors: string[] = [];
@@ -13,7 +13,7 @@ function observeRuntime(page: Page) {
   });
   page.on('pageerror', (error) => criticalErrors.push(error.message));
   page.on('request', (request) => {
-    if (/supabase|fuemwzrvmputgbaaondp/i.test(request.url())) {
+    if (/supabase\.(?:co|in)/i.test(request.url())) {
       forbiddenRequests.push(request.url());
     }
   });

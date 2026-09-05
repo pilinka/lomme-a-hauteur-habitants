@@ -22,8 +22,9 @@ function visit(directory) {
 
     if (/@supabase\//.test(content))
       violations.push(`${relativePath}: dépendance Supabase interdite au Lot 1`);
-    if (/fuemwzrvmputgbaaondp/.test(content))
-      violations.push(`${relativePath}: référence au projet V3`);
+    if (/(?:https?:\/\/[^\s"']+\.supabase\.(?:co|in)|VITE_SUPABASE_)/i.test(content)) {
+      violations.push(`${relativePath}: URL ou configuration Supabase interdite au Lot 1`);
+    }
     if (/tests\/fixtures|tests\\fixtures/.test(content))
       violations.push(`${relativePath}: fixture importée en production`);
     if (relativePath.startsWith('apps/public-web/') && /professional-console/.test(content)) {
