@@ -1,14 +1,15 @@
-# À hauteur d’habitants V4 — Lot 1
+# À hauteur d’habitants V4 — Lot 2
 
-Socle logiciel minimal de la V4 : deux applications React/TypeScript séparées, des contrats métier
-provisoires, un système d’interface accessible et une chaîne de qualité reproductible.
+Socle logiciel et backend multi-collectivité de la V4 : deux applications React/TypeScript séparées,
+des frontières application/data-access, des migrations Supabase reproductibles et une matrice RLS
+testée entre organisations.
 
-Ce lot ne contient **ni projet Supabase V4, ni schéma SQL, ni migration de données, ni
-authentification, ni déploiement**. Les contenus V3 et les données de démonstration ne sont pas
-repris.
+Ce lot ne contient **ni migration V3, ni donnée territoriale réelle, ni compte professionnel réel,
+ni fonctionnalité du Lot 3, ni déploiement**. Les contenus V3 et les données de démonstration ne
+sont pas repris.
 
 La feuille de route historique V3 (`docs/feuille-de-route-complete-lomme-a-hauteur-habitants.md`)
-est conservée comme document non normatif. Elle ne décrit pas l’état du Lot 1 et ne doit pas être
+est conservée comme document non normatif. Elle ne décrit pas l’état du Lot 2 et ne doit pas être
 utilisée comme spécification V4. Les médias V3 restent hors de cette branche et ne sont ni suivis
 ni publiés dans le socle V4.
 
@@ -39,6 +40,7 @@ npm run format:check
 npm run lint
 npm run typecheck
 npm run test:architecture
+npm run test:database-contracts
 npm run test:contrast
 npm run security:secrets
 npm test -- --coverage

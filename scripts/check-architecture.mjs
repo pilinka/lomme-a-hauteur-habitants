@@ -20,11 +20,14 @@ function visit(directory) {
     if (!sourceExtensions.has(extname(entry)) || /\.(test|spec)\.[^.]+$/.test(entry)) continue;
     const content = readFileSync(absolutePath, 'utf8');
 
-    if (/@supabase\//.test(content))
-      violations.push(`${relativePath}: dépendance Supabase interdite au Lot 1`);
-    if (/(?:https?:\/\/[^\s"']+\.supabase\.(?:co|in)|VITE_SUPABASE_)/i.test(content)) {
-      violations.push(`${relativePath}: URL ou configuration Supabase interdite au Lot 1`);
+    if (/@supabase\//.test(content) && !relativePath.startsWith('packages/data-access/')) {
+      violations.push(`${relativePath}: client Supabase autorisé uniquement dans data-access`);
     }
+    if (/(?:https?:\/\/[^\s"']+\.supabase\.(?:co|in)|VITE_SUPABASE_)/i.test(content)) {
+      violations.push(`${relativePath}: configuration Supabase codée dans le runtime`);
+    }
+    if (/service_role/i.test(content))
+      violations.push(`${relativePath}: service_role interdite dans le runtime`);
     if (/tests\/fixtures|tests\\fixtures/.test(content))
       violations.push(`${relativePath}: fixture importée en production`);
     if (relativePath.startsWith('apps/public-web/') && /professional-console/.test(content)) {
@@ -41,6 +44,15 @@ function visit(directory) {
     }
     if (relativePath.startsWith('packages/domain/') && /\breact(?:-dom)?\b/.test(content)) {
       violations.push(`${relativePath}: React interdit dans le domaine pur`);
+    }
+    if (
+      relativePath.startsWith('packages/application/') &&
+      /@ahh\/(?:data-access|database-types)|@supabase\//.test(content)
+    ) {
+      violations.push(`${relativePath}: le cas d’usage dépend d’un transport ou de la base`);
+    }
+    if (relativePath.startsWith('packages/data-access/') && /@ahh\/(?:ui)|apps\//.test(content)) {
+      violations.push(`${relativePath}: data-access dépend de la présentation`);
     }
     if (relativePath.startsWith('packages/') && /\bLomme\b/i.test(content)) {
       violations.push(`${relativePath}: territoire particulier dans un package partagé`);
@@ -74,10 +86,13 @@ for (const manifest of [
   'apps/professional-console/package.json',
   'packages/domain/package.json',
   'packages/ui/package.json',
+  'packages/application/package.json',
+  'packages/data-access/package.json',
+  'packages/database-types/package.json',
 ]) {
   const content = readFileSync(join(repositoryRoot, manifest), 'utf8');
-  if (/supabase|VITE_SUPABASE|service_role/i.test(content)) {
-    violations.push(`${manifest}: dépendance ou configuration Supabase interdite au Lot 1`);
+  if (/VITE_SUPABASE|service_role/i.test(content)) {
+    violations.push(`${manifest}: secret ou configuration d’environnement interdite`);
   }
 }
 
@@ -86,16 +101,14 @@ for (const buildDirectory of ['apps/public-web/dist', 'apps/professional-console
   visit(join(repositoryRoot, buildDirectory));
 }
 
-for (const forbiddenPath of [
+for (const requiredPath of [
   'supabase',
-  'migrations',
   'packages/database-types',
-  'packages/tenant-config',
   'packages/application',
   'packages/data-access',
 ]) {
-  if (existsSync(join(repositoryRoot, forbiddenPath))) {
-    violations.push(`${forbiddenPath}: couche anticipée avant le Lot 2`);
+  if (!existsSync(join(repositoryRoot, requiredPath))) {
+    violations.push(`${requiredPath}: fondation attendue du Lot 2 absente`);
   }
 }
 
@@ -105,4 +118,4 @@ if (violations.length) {
   process.exit(1);
 }
 
-console.log('Contrôle d’architecture réussi : frontières du Lot 1 respectées.');
+console.log('Contrôle d’architecture réussi : frontières du Lot 2 respectées.');

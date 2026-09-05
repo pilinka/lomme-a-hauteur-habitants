@@ -1,6 +1,6 @@
 {
   "name": "a-hauteur-habitants-v4",
-  "version": "4.0.0-lot.1",
+  "version": "4.0.0-lot.2",
   "private": true,
   "type": "module",
   "packageManager": "npm@11.9.0",
@@ -28,6 +28,7 @@
     "test:architecture": "node scripts/check-architecture.mjs",
     "test:contrast": "node scripts/check-contrast.mjs",
     "test:fixtures": "node scripts/check-fixtures.mjs",
+    "test:database-contracts": "node scripts/check-database-contracts.mjs",
     "security:secrets": "node scripts/check-secrets.mjs"
   },
   "devDependencies": {

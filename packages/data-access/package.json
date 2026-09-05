@@ -1,0 +1,15 @@
+{
+  "name": "@ahh/data-access",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@ahh/application": "0.0.0",
+    "@ahh/database-types": "0.0.0"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  }
+}
