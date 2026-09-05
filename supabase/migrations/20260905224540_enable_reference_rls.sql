@@ -1,0 +1,3 @@
+ALTER TABLE reference.roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reference.permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reference.role_permissions ENABLE ROW LEVEL SECURITY;
