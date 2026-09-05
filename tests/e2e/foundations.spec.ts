@@ -98,7 +98,7 @@ test.describe('fondations publiques', () => {
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: 'Accueil' })).toBeFocused();
     await page.keyboard.press('Tab');
-    await expect(page.getByRole('link', { name: 'Explorer' })).toBeFocused();
+    await expect(page.getByRole('link', { name: 'Explorer', exact: true })).toBeFocused();
     await page.keyboard.press('Tab');
     const contributeLink = page.getByRole('link', { name: 'Contribuer' });
     await expect(contributeLink).toBeFocused();
